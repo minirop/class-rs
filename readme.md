@@ -10,14 +10,3 @@ let mut jvm = JVMClass::new();
 let mut file = std::fs::File::open("Test.class").unwrap();
 jvm.load(&mut file).unwrap();
 ```
-
-## Unimplemented attributes
-
-For now, those attributes will make this crate panic if they are encountered.
-
-- MethodParameters
-- Module
-- ModuleMainClass
-- Record
-- RuntimeInvisibleTypeAnnotations
-- RuntimeVisibleTypeAnnotations

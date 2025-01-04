@@ -8,13 +8,16 @@ use std::io::Read;
 
 mod enums;
 pub use enums::{
-    AccessFlag, Attribute, Constant, ElementValue, Instruction, StackMapFrameType, VerificationType,
+    AccessFlag, Attribute, Constant, ElementValue, Instruction, StackMapFrameType, TargetInfo,
+    VerificationType,
 };
 
 mod structs;
 pub use structs::{
-    Annotation, BootstrapMethod, ElementValuePair, Field, InnerClass, LineNumber, LocalVariable,
-    LocalVariableType, LookupSwitchPair, MemberData, Method, StackMapFrame,
+    Annotation, BootstrapMethod, ElementValuePair, Field, InnerClass, LineNumber, LocalVar,
+    LocalVariable, LocalVariableType, LookupSwitchPair, MemberData, Method, MethodParameter,
+    ModuleExports, ModuleOpens, ModuleProvides, ModuleRequires, StackMapFrame, TypeAnnotation,
+    TypePath,
 };
 
 mod parser;
