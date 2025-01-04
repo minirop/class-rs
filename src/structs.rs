@@ -77,3 +77,43 @@ pub struct LocalVariableType {
     pub signature_index: u16,
     pub index: u16,
 }
+
+#[derive(Debug)]
+pub struct MethodParameter {
+    pub name_index: u16,
+    pub access_flags: Vec<AccessFlag>,
+}
+
+#[derive(Debug)]
+pub struct ModuleRequires {
+    pub requires_index: u16,
+    pub requires_flags: Vec<AccessFlag>,
+    pub requires_version_index: u16,
+}
+
+#[derive(Debug)]
+pub struct ModuleExports {
+    pub exports_index: u16,
+    pub exports_flags: Vec<AccessFlag>,
+    pub exports_to_index: Vec<u16>,
+}
+
+#[derive(Debug)]
+pub struct ModuleOpens {
+    pub opens_index: u16,
+    pub opens_flags: Vec<AccessFlag>,
+    pub opens_to_index: Vec<u16>,
+}
+
+#[derive(Debug)]
+pub struct ModuleProvides {
+    pub provides_index: u16,
+    pub provides_with_index: Vec<u16>,
+}
+
+#[derive(Debug)]
+pub struct RecordComponent {
+    pub name_index: u16,
+    pub descriptor_index: u16,
+    pub attributes: Vec<Attribute>,
+}

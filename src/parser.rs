@@ -8,7 +8,8 @@ use crate::enums::{
 };
 use crate::structs::{
     Annotation, BootstrapMethod, ElementValuePair, Field, InnerClass, LineNumber, LocalVariable,
-    LocalVariableType, LookupSwitchPair, MemberData, Method, StackMapFrame,
+    LocalVariableType, LookupSwitchPair, MemberData, Method, MethodParameter, ModuleExports,
+    ModuleOpens, ModuleProvides, ModuleRequires, RecordComponent, StackMapFrame,
 };
 use crate::JVMClass;
 
@@ -219,6 +220,55 @@ fn extract_method_flags(flags: u16) -> Vec<AccessFlag> {
         (0x0400, AccessFlag::Abstract),
         (0x0800, AccessFlag::Strict),
         (0x1000, AccessFlag::Synthetic),
+    ];
+
+    extract_flags(flags, &mapping)
+}
+
+fn extract_method_parameter_flags(flags: u16) -> Vec<AccessFlag> {
+    let mapping = [
+        (0x0010, AccessFlag::Final),
+        (0x1000, AccessFlag::Synthetic),
+        (0x8000, AccessFlag::Mandated),
+    ];
+
+    extract_flags(flags, &mapping)
+}
+
+fn extract_module_flags(flags: u16) -> Vec<AccessFlag> {
+    let mapping = [
+        (0x0020, AccessFlag::Open),
+        (0x1000, AccessFlag::Synthetic),
+        (0x8000, AccessFlag::Mandated),
+    ];
+
+    extract_flags(flags, &mapping)
+}
+
+fn extract_module_requires_flags(flags: u16) -> Vec<AccessFlag> {
+    let mapping = [
+        (0x0020, AccessFlag::Transitive),
+        (0x0040, AccessFlag::StaticPhase),
+        (0x1000, AccessFlag::Synthetic),
+        (0x8000, AccessFlag::Mandated),
+    ];
+
+    extract_flags(flags, &mapping)
+}
+
+fn extract_module_opens_flags(flags: u16) -> Vec<AccessFlag> {
+    let mapping = [
+        (0x1000, AccessFlag::Synthetic),
+        (0x8000, AccessFlag::Mandated),
+    ];
+
+    extract_flags(flags, &mapping)
+}
+
+fn extract_module_exports_flags(flags: u16) -> Vec<AccessFlag> {
+    let mapping = [
+        (0x1000, AccessFlag::Synthetic),
+        (0x8000, AccessFlag::Mandated),
     ];
 
     extract_flags(flags, &mapping)
@@ -615,10 +665,48 @@ pub fn read_attributes<R: Read>(
                 Attribute::BootstrapMethods(bootstrap_methods)
             }
             "MethodParameters" => {
-                unimplemented!();
+                let parameters_count = r.read_u8()?;
+
+                let mut parameters = vec![];
+                for _ in 0..parameters_count {
+                    let name_index = r.read_u16::<BigEndian>()?;
+                    let access_flags = r.read_u16::<BigEndian>()?;
+                    let access_flags = extract_method_parameter_flags(access_flags);
+                    parameters.push(MethodParameter {
+                        name_index,
+                        access_flags,
+                    });
+                }
+
+                Attribute::MethodParameters(parameters)
             }
             "Module" => {
-                unimplemented!();
+                let module_name_index = r.read_u16::<BigEndian>()?;
+                let module_flags = r.read_u16::<BigEndian>()?;
+                let module_flags = extract_module_flags(module_flags);
+                let module_version_index = r.read_u16::<BigEndian>()?;
+                let requires = read_module_requires(r)?;
+                let exports = read_module_exports(r)?;
+                let opens = read_module_opens(r)?;
+
+                let uses_count = r.read_u16::<BigEndian>()?;
+                let mut uses = vec![];
+                for _ in 0..uses_count {
+                    uses.push(r.read_u16::<BigEndian>()?);
+                }
+
+                let provides = read_module_provides(r)?;
+
+                Attribute::Module {
+                    module_name_index,
+                    module_flags,
+                    module_version_index,
+                    requires,
+                    exports,
+                    opens,
+                    uses,
+                    provides,
+                }
             }
             "ModuleMainClass" => {
                 assert_eq!(attribute_length, 2);
@@ -664,7 +752,22 @@ pub fn read_attributes<R: Read>(
                 Attribute::PermittedSubclasses(classes)
             }
             "Record" => {
-                unimplemented!();
+                let components_count = r.read_u16::<BigEndian>()?;
+
+                let mut components = vec![];
+                for _ in 0..components_count {
+                    let name_index = r.read_u16::<BigEndian>()?;
+                    let descriptor_index = r.read_u16::<BigEndian>()?;
+                    let attributes = read_attributes(jvm, r)?;
+
+                    components.push(RecordComponent {
+                        name_index,
+                        descriptor_index,
+                        attributes,
+                    });
+                }
+
+                Attribute::Record(components)
             }
             "RuntimeInvisibleTypeAnnotations" => {
                 unimplemented!();
@@ -688,6 +791,134 @@ pub fn read_attributes<R: Read>(
 
     Ok(attributes)
 }
+
+fn read_module_requires<R: Read>(r: &mut R) -> Result<Vec<ModuleRequires>, io::Error> {
+    let requires_count = r.read_u16::<BigEndian>()?;
+
+    let mut requires = vec![];
+    for _ in 0..requires_count {
+        let requires_index = r.read_u16::<BigEndian>()?;
+        let requires_flags = r.read_u16::<BigEndian>()?;
+        let requires_flags = extract_module_requires_flags(requires_flags);
+        let requires_version_index = r.read_u16::<BigEndian>()?;
+
+        requires.push(ModuleRequires {
+            requires_index,
+            requires_flags,
+            requires_version_index,
+        });
+    }
+
+    Ok(requires)
+}
+
+fn read_module_exports<R: Read>(r: &mut R) -> Result<Vec<ModuleExports>, io::Error> {
+    let exports_count = r.read_u16::<BigEndian>()?;
+
+    let mut exports = vec![];
+    for _ in 0..exports_count {
+        let exports_index = r.read_u16::<BigEndian>()?;
+        let exports_flags = r.read_u16::<BigEndian>()?;
+        let exports_flags = extract_module_exports_flags(exports_flags);
+        let exports_to_count = r.read_u16::<BigEndian>()?;
+
+        let mut exports_to_index = vec![];
+        for _ in 0..exports_to_count {
+            let export_to_index = r.read_u16::<BigEndian>()?;
+            exports_to_index.push(export_to_index);
+        }
+
+        exports.push(ModuleExports {
+            exports_index,
+            exports_flags,
+            exports_to_index,
+        });
+    }
+
+    Ok(exports)
+}
+
+fn read_module_opens<R: Read>(r: &mut R) -> Result<Vec<ModuleOpens>, io::Error> {
+    let opens_count = r.read_u16::<BigEndian>()?;
+
+    let mut opens = vec![];
+    for _ in 0..opens_count {
+        let opens_index = r.read_u16::<BigEndian>()?;
+        let opens_flags = r.read_u16::<BigEndian>()?;
+        let opens_flags = extract_module_opens_flags(opens_flags);
+        let opens_to_count = r.read_u16::<BigEndian>()?;
+
+        let mut opens_to_index = vec![];
+        for _ in 0..opens_to_count {
+            let open_to_index = r.read_u16::<BigEndian>()?;
+            opens_to_index.push(open_to_index);
+        }
+
+        opens.push(ModuleOpens {
+            opens_index,
+            opens_flags,
+            opens_to_index,
+        });
+    }
+
+    Ok(opens)
+}
+
+fn read_module_provides<R: Read>(r: &mut R) -> Result<Vec<ModuleProvides>, io::Error> {
+    let provides_count = r.read_u16::<BigEndian>()?;
+
+    let mut provides = vec![];
+    for _ in 0..provides_count {
+        let provides_index = r.read_u16::<BigEndian>()?;
+        let provides_with_count = r.read_u16::<BigEndian>()?;
+
+        let mut provides_with_index = vec![];
+        for _ in 0..provides_with_count {
+            let provide_with_index = r.read_u16::<BigEndian>()?;
+            provides_with_index.push(provide_with_index);
+        }
+
+        provides.push(ModuleProvides {
+            provides_index,
+            provides_with_index,
+        });
+    }
+
+    Ok(provides)
+}
+/*
+u2 module_name_index;
+u2 module_flags;
+u2 module_version_index;
+
+u2 requires_count;
+{   u2 requires_index;
+    u2 requires_flags;
+    u2 requires_version_index;
+} requires[requires_count];
+
+u2 exports_count;
+{   u2 exports_index;
+    u2 exports_flags;
+    u2 exports_to_count;
+    u2 exports_to_index[exports_to_count];
+} exports[exports_count];
+
+u2 opens_count;
+{   u2 opens_index;
+    u2 opens_flags;
+    u2 opens_to_count;
+    u2 opens_to_index[opens_to_count];
+} opens[opens_count];
+
+u2 uses_count;
+u2 uses_index[uses_count];
+
+u2 provides_count;
+{   u2 provides_index;
+    u2 provides_with_count;
+    u2 provides_with_index[provides_with_count];
+} provides[provides_count];*/
 
 fn read_verification_type<R: Read>(r: &mut R) -> Result<VerificationType, io::Error> {
     let tag = r.read_u8()?;

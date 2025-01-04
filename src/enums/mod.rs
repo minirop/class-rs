@@ -1,5 +1,6 @@
 use crate::structs::{
     Annotation, BootstrapMethod, InnerClass, LineNumber, LocalVariable, LocalVariableType,
+    MethodParameter, ModuleExports, ModuleOpens, ModuleProvides, ModuleRequires, RecordComponent,
     StackMapFrame,
 };
 
@@ -219,17 +220,23 @@ pub enum Attribute {
     LineNumberTable(Vec<LineNumber>),
     LocalVariableTable(Vec<LocalVariable>),
     LocalVariableTypeTable(Vec<LocalVariableType>),
-    /// Not implemented
-    MethodParameters,
-    /// Not implemented
-    Module,
+    MethodParameters(Vec<MethodParameter>),
+    Module {
+        module_name_index: u16,
+        module_flags: Vec<AccessFlag>,
+        module_version_index: u16,
+        requires: Vec<ModuleRequires>,
+        exports: Vec<ModuleExports>,
+        opens: Vec<ModuleOpens>,
+        uses: Vec<u16>,
+        provides: Vec<ModuleProvides>,
+    },
     ModuleMainClass(u16),
     ModulePackages(Vec<u16>),
     NestHost(u16),
     NestMembers(Vec<u16>),
     PermittedSubclasses(Vec<u16>),
-    /// Not implemented
-    Record,
+    Record(Vec<RecordComponent>),
     RuntimeInvisibleAnnotations(Vec<Annotation>),
     RuntimeInvisibleParameterAnnotations(Vec<Vec<Annotation>>),
     /// Not implemented
