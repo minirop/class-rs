@@ -1,7 +1,7 @@
 use crate::structs::{
-    Annotation, BootstrapMethod, InnerClass, LineNumber, LocalVariable, LocalVariableType,
-    MethodParameter, ModuleExports, ModuleOpens, ModuleProvides, ModuleRequires, RecordComponent,
-    StackMapFrame,
+    Annotation, BootstrapMethod, InnerClass, LineNumber, LocalVar, LocalVariable,
+    LocalVariableType, MethodParameter, ModuleExports, ModuleOpens, ModuleProvides, ModuleRequires,
+    RecordComponent, StackMapFrame, TypeAnnotation,
 };
 
 mod instructions;
@@ -239,12 +239,10 @@ pub enum Attribute {
     Record(Vec<RecordComponent>),
     RuntimeInvisibleAnnotations(Vec<Annotation>),
     RuntimeInvisibleParameterAnnotations(Vec<Vec<Annotation>>),
-    /// Not implemented
-    RuntimeInvisibleTypeAnnotations,
+    RuntimeInvisibleTypeAnnotations(Vec<TypeAnnotation>),
     RuntimeVisibleAnnotations(Vec<Annotation>),
     RuntimeVisibleParameterAnnotations(Vec<Vec<Annotation>>),
-    /// Not implemented
-    RuntimeVisibleTypeAnnotations,
+    RuntimeVisibleTypeAnnotations(Vec<TypeAnnotation>),
     Signature {
         signature_index: u16,
     },
@@ -295,5 +293,37 @@ pub enum ElementValue {
     EnumConstValue {
         type_name_index: u16,
         const_name_index: u16,
+    },
+}
+
+#[derive(Debug)]
+pub enum TargetInfo {
+    TypeParameter {
+        type_parameter_index: u8,
+    },
+    Supertype {
+        supertype_index: u16,
+    },
+    TypeParameterBound {
+        type_parameter_index: u8,
+        bound_index: u8,
+    },
+    Empty,
+    FormalParameter {
+        formal_parameter_index: u8,
+    },
+    Throws {
+        throws_type_index: u16,
+    },
+    Localvar(Vec<LocalVar>),
+    Catch {
+        exception_table_index: u16,
+    },
+    Offset {
+        offset: u16,
+    },
+    TypeArgument {
+        offset: u16,
+        type_argument_index: u8,
     },
 }

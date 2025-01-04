@@ -1,4 +1,6 @@
-use crate::enums::{AccessFlag, Attribute, ElementValue, StackMapFrameType, VerificationType};
+use crate::enums::{
+    AccessFlag, Attribute, ElementValue, StackMapFrameType, TargetInfo, VerificationType,
+};
 
 #[derive(Debug)]
 pub struct MemberData {
@@ -116,4 +118,24 @@ pub struct RecordComponent {
     pub name_index: u16,
     pub descriptor_index: u16,
     pub attributes: Vec<Attribute>,
+}
+
+#[derive(Debug)]
+pub struct LocalVar {
+    pub start_pc: u16,
+    pub length: u16,
+    pub index: u16,
+}
+
+#[derive(Debug)]
+pub struct TypePath {
+    pub type_path_kind: u8,
+    pub type_argument_index: u8,
+}
+
+#[derive(Debug)]
+pub struct TypeAnnotation {
+    pub target_info: TargetInfo,
+    pub target_path: Vec<TypePath>,
+    pub annotation: Annotation,
 }
