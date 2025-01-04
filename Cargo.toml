@@ -1,0 +1,11 @@
+[package]
+name = "class-rs"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Reads a .class file into an almost 1-to-1 matching struct"
+repository = "https://github.com/minirop/class-rs"
+readme = "readme.md"
+
+[dependencies]
+byteorder = "1.5.0"
