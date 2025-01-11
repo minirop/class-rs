@@ -2,9 +2,9 @@
 //!
 //! Reads a .class file into an almost 1-to-1 matching struct.
 
-use byteorder::{BigEndian, ReadBytesExt};
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::error::Error;
-use std::io::Read;
+use std::io::{Read, Write, Seek};
 
 mod enums;
 pub use enums::{
@@ -26,8 +26,16 @@ use crate::parser::{
     read_methods,
 };
 
+mod writer;
+use crate::writer::{
+    compact_class_flags, write_attributes, write_constant_pool, write_fields, write_interfaces,
+    write_methods,
+};
+
 mod errors;
 pub use errors::JavaError;
+
+mod mapping;
 
 #[derive(Debug)]
 pub struct JVMClass {
@@ -60,7 +68,6 @@ impl JVMClass {
     }
 
     pub fn load<R: Read>(&mut self, mut r: &mut R) -> Result<(), Box<dyn Error>> {
-        //let mut f = File::open(filename)?;
         let magic = r.read_u32::<BigEndian>()?;
         assert_eq!(magic, 0xCAFEBABE);
 
@@ -83,6 +90,28 @@ impl JVMClass {
         Ok(())
     }
 
+    pub fn store<W: Write + Seek>(&self, mut w: &mut W) -> Result<(), Box<dyn Error>> {
+        w.write_u32::<BigEndian>(0xCAFEBABE)?;
+
+        w.write_u16::<BigEndian>(self.minor)?;
+        w.write_u16::<BigEndian>(self.major)?;
+
+        write_constant_pool(&mut w, &self.constants)?;
+
+        let access_flags = compact_class_flags(&self.access_flags);
+        w.write_u16::<BigEndian>(access_flags)?;
+
+        w.write_u16::<BigEndian>(self.this_class)?;
+        w.write_u16::<BigEndian>(self.super_class)?;
+
+        write_interfaces(&mut w, &self.interfaces)?;
+        write_fields(&mut w, &self.fields, self)?;
+        write_methods(&mut w, &self.methods, self)?;
+        write_attributes(&mut w, &self.attributes, self)?;
+
+        Ok(())
+    }
+
     pub fn get_string(&self, id: u16) -> Result<&str, JavaError> {
         let id = id as usize;
 
@@ -98,5 +127,17 @@ impl JVMClass {
         } else {
             Err(JavaError::InvalidConstantId)
         }
+    }
+
+    pub fn get_string_index(&self, string: &str) -> Result<u16, JavaError> {
+        for (index, constant) in self.constants.iter().enumerate() {
+            if let Constant::Utf8(s) = constant {
+                if s == string {
+                    return Ok(index as u16);
+                }
+            }
+        }
+
+        Err(JavaError::StringNotFound)
     }
 }

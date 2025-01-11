@@ -4,6 +4,7 @@ use std::fmt::Formatter;
 pub enum JavaError {
     ConstantTypeError(String),
     InvalidConstantId,
+    StringNotFound,
 }
 
 impl std::fmt::Display for JavaError {
@@ -11,6 +12,7 @@ impl std::fmt::Display for JavaError {
         match self {
             JavaError::ConstantTypeError(message) => write!(f, "{}", message),
             JavaError::InvalidConstantId => write!(f, "Invalid constant id"),
+            JavaError::StringNotFound => write!(f, "String not found"),
         }
     }
 }

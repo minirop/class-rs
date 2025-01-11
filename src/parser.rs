@@ -15,6 +15,11 @@ use crate::structs::{
 };
 use crate::JVMClass;
 
+use crate::mapping::{
+    CLASS_FLAGS, FIELD_FLAGS, INNER_CLASS_FLAGS, METHOD_FLAGS, METHOD_PARAMETER_FLAGS,
+    MODULE_EXPORTS_FLAGS, MODULE_FLAGS, MODULE_OPENS_FLAGS, MODULE_REQUIRES_FLAGS,
+};
+
 pub fn read_constant_pool<R: Read>(r: &mut R) -> Result<Vec<Constant>, io::Error> {
     let count = r.read_u16::<BigEndian>()?;
 
@@ -154,126 +159,45 @@ pub fn read_constant_pool<R: Read>(r: &mut R) -> Result<Vec<Constant>, io::Error
 fn extract_flags<T: Copy>(flags: u16, mapping: &[(u16, T)]) -> Vec<T> {
     mapping
         .iter()
-        .filter(|(value, _)| (value & flags) == 0)
+        .filter(|(value, _)| (value & flags) != 0)
         .map(|(_, e)| *e)
         .collect::<Vec<_>>()
 }
 
 pub fn extract_class_flags(flags: u16) -> Vec<AccessFlag> {
-    let mapping = [
-        (0x0001, AccessFlag::Public),
-        (0x0010, AccessFlag::Final),
-        (0x0020, AccessFlag::Super),
-        (0x0200, AccessFlag::Interface),
-        (0x0400, AccessFlag::Abstract),
-        (0x1000, AccessFlag::Synthetic),
-        (0x2000, AccessFlag::Annotation),
-        (0x4000, AccessFlag::Enum),
-        (0x8000, AccessFlag::Module),
-    ];
-
-    extract_flags(flags, &mapping)
+    extract_flags(flags, &CLASS_FLAGS)
 }
 
 fn extract_inner_class_flags(flags: u16) -> Vec<AccessFlag> {
-    let mapping = [
-        (0x0001, AccessFlag::Public),
-        (0x0002, AccessFlag::Private),
-        (0x0004, AccessFlag::Protected),
-        (0x0008, AccessFlag::Static),
-        (0x0010, AccessFlag::Final),
-        (0x0200, AccessFlag::Interface),
-        (0x0400, AccessFlag::Abstract),
-        (0x1000, AccessFlag::Synthetic),
-        (0x2000, AccessFlag::Annotation),
-        (0x4000, AccessFlag::Enum),
-    ];
-
-    extract_flags(flags, &mapping)
+    extract_flags(flags, &INNER_CLASS_FLAGS)
 }
 
 fn extract_field_flags(flags: u16) -> Vec<AccessFlag> {
-    let mapping = [
-        (0x0001, AccessFlag::Public),
-        (0x0002, AccessFlag::Private),
-        (0x0004, AccessFlag::Protected),
-        (0x0008, AccessFlag::Static),
-        (0x0010, AccessFlag::Final),
-        (0x0040, AccessFlag::Volatile),
-        (0x0080, AccessFlag::Transient),
-        (0x1000, AccessFlag::Synthetic),
-        (0x4000, AccessFlag::Enum),
-    ];
-
-    extract_flags(flags, &mapping)
+    extract_flags(flags, &FIELD_FLAGS)
 }
 
 fn extract_method_flags(flags: u16) -> Vec<AccessFlag> {
-    let mapping = [
-        (0x0001, AccessFlag::Public),
-        (0x0002, AccessFlag::Private),
-        (0x0004, AccessFlag::Protected),
-        (0x0008, AccessFlag::Static),
-        (0x0010, AccessFlag::Final),
-        (0x0020, AccessFlag::Synchronized),
-        (0x0040, AccessFlag::Bridge),
-        (0x0080, AccessFlag::VarArgs),
-        (0x0100, AccessFlag::Native),
-        (0x0400, AccessFlag::Abstract),
-        (0x0800, AccessFlag::Strict),
-        (0x1000, AccessFlag::Synthetic),
-    ];
-
-    extract_flags(flags, &mapping)
+    extract_flags(flags, &METHOD_FLAGS)
 }
 
 fn extract_method_parameter_flags(flags: u16) -> Vec<AccessFlag> {
-    let mapping = [
-        (0x0010, AccessFlag::Final),
-        (0x1000, AccessFlag::Synthetic),
-        (0x8000, AccessFlag::Mandated),
-    ];
-
-    extract_flags(flags, &mapping)
+    extract_flags(flags, &METHOD_PARAMETER_FLAGS)
 }
 
 fn extract_module_flags(flags: u16) -> Vec<AccessFlag> {
-    let mapping = [
-        (0x0020, AccessFlag::Open),
-        (0x1000, AccessFlag::Synthetic),
-        (0x8000, AccessFlag::Mandated),
-    ];
-
-    extract_flags(flags, &mapping)
+    extract_flags(flags, &MODULE_FLAGS)
 }
 
 fn extract_module_requires_flags(flags: u16) -> Vec<AccessFlag> {
-    let mapping = [
-        (0x0020, AccessFlag::Transitive),
-        (0x0040, AccessFlag::StaticPhase),
-        (0x1000, AccessFlag::Synthetic),
-        (0x8000, AccessFlag::Mandated),
-    ];
-
-    extract_flags(flags, &mapping)
+    extract_flags(flags, &MODULE_REQUIRES_FLAGS)
 }
 
 fn extract_module_opens_flags(flags: u16) -> Vec<AccessFlag> {
-    let mapping = [
-        (0x1000, AccessFlag::Synthetic),
-        (0x8000, AccessFlag::Mandated),
-    ];
-
-    extract_flags(flags, &mapping)
+    extract_flags(flags, &MODULE_OPENS_FLAGS)
 }
 
 fn extract_module_exports_flags(flags: u16) -> Vec<AccessFlag> {
-    let mapping = [
-        (0x1000, AccessFlag::Synthetic),
-        (0x8000, AccessFlag::Mandated),
-    ];
-
-    extract_flags(flags, &mapping)
+    extract_flags(flags, &MODULE_EXPORTS_FLAGS)
 }
 
 pub fn read_interfaces<R: Read>(r: &mut R) -> Result<Vec<u16>, io::Error> {

@@ -7,7 +7,7 @@ use crate::structs::{
 mod instructions;
 pub use instructions::Instruction;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AccessFlag {
     /// - class: Declared abstract; must not be instantiated.
     /// - inner class: Marked or implicitly abstract in source.
