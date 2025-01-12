@@ -289,7 +289,10 @@ pub enum ElementValue {
     AnnotationValue(Annotation),
     ArrayValue(Vec<ElementValue>),
     ClassInfoIndex(u16),
-    ConstValueIndex(u16),
+    ConstValueIndex {
+        tag: u8,
+        const_value_index: u16,
+    },
     EnumConstValue {
         type_name_index: u16,
         const_name_index: u16,

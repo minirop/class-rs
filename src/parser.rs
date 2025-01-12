@@ -297,9 +297,13 @@ fn read_annotation<R: Read>(r: &mut R) -> Result<Annotation, io::Error> {
 fn read_element_value<R: Read>(r: &mut R) -> Result<ElementValue, io::Error> {
     let tag = r.read_u8()?;
     Ok(match tag {
-        b'B' | b'C' | b'D' | b'F' | b'I' | b'J' | b'S' | b'Z' | b's' | b'c' => {
+        b'B' | b'C' | b'D' | b'F' | b'I' | b'J' | b'S' | b'Z' | b's' => {
             let const_value_index = r.read_u16::<BigEndian>()?;
-            ElementValue::ConstValueIndex(const_value_index)
+            ElementValue::ConstValueIndex { tag, const_value_index }
+        }
+        b'c' => {
+            let class_info_index = r.read_u16::<BigEndian>()?;
+            ElementValue::ClassInfoIndex(class_info_index)
         }
         b'e' => {
             let type_name_index = r.read_u16::<BigEndian>()?;
