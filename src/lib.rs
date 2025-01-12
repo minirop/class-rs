@@ -67,14 +67,14 @@ impl JVMClass {
         }
     }
 
-    pub fn load<R: Read>(&mut self, mut r: &mut R) -> Result<(), Box<dyn Error>> {
+    pub fn load<R: Read>(&mut self, r: &mut R) -> Result<(), Box<dyn Error>> {
         let magic = r.read_u32::<BigEndian>()?;
         assert_eq!(magic, 0xCAFEBABE);
 
         self.minor = r.read_u16::<BigEndian>()?;
         self.major = r.read_u16::<BigEndian>()?;
 
-        self.constants = read_constant_pool(&mut r)?;
+        self.constants = read_constant_pool(r)?;
 
         let access_flags = r.read_u16::<BigEndian>()?;
         self.access_flags = extract_class_flags(access_flags);
@@ -82,21 +82,21 @@ impl JVMClass {
         self.this_class = r.read_u16::<BigEndian>()?;
         self.super_class = r.read_u16::<BigEndian>()?;
 
-        self.interfaces = read_interfaces(&mut r)?;
-        self.fields = read_fields(&self, &mut r)?;
-        self.methods = read_methods(&self, &mut r)?;
-        self.attributes = read_attributes(&self, &mut r)?;
+        self.interfaces = read_interfaces(r)?;
+        self.fields = read_fields(&self, r)?;
+        self.methods = read_methods(&self, r)?;
+        self.attributes = read_attributes(&self, r)?;
 
         Ok(())
     }
 
-    pub fn store<W: Write + Seek>(&self, mut w: &mut W) -> Result<(), Box<dyn Error>> {
+    pub fn store<W: Write + Seek>(&self, w: &mut W) -> Result<(), Box<dyn Error>> {
         w.write_u32::<BigEndian>(0xCAFEBABE)?;
 
         w.write_u16::<BigEndian>(self.minor)?;
         w.write_u16::<BigEndian>(self.major)?;
 
-        write_constant_pool(&mut w, &self.constants)?;
+        write_constant_pool(w, &self.constants)?;
 
         let access_flags = compact_class_flags(&self.access_flags);
         w.write_u16::<BigEndian>(access_flags)?;
@@ -104,10 +104,10 @@ impl JVMClass {
         w.write_u16::<BigEndian>(self.this_class)?;
         w.write_u16::<BigEndian>(self.super_class)?;
 
-        write_interfaces(&mut w, &self.interfaces)?;
-        write_fields(&mut w, &self.fields, self)?;
-        write_methods(&mut w, &self.methods, self)?;
-        write_attributes(&mut w, &self.attributes, self)?;
+        write_interfaces(w, &self.interfaces)?;
+        write_fields(w, &self.fields, self)?;
+        write_methods(w, &self.methods, self)?;
+        write_attributes(w, &self.attributes, self)?;
 
         Ok(())
     }
