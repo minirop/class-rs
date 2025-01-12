@@ -299,7 +299,10 @@ fn read_element_value<R: Read>(r: &mut R) -> Result<ElementValue, io::Error> {
     Ok(match tag {
         b'B' | b'C' | b'D' | b'F' | b'I' | b'J' | b'S' | b'Z' | b's' => {
             let const_value_index = r.read_u16::<BigEndian>()?;
-            ElementValue::ConstValueIndex { tag, const_value_index }
+            ElementValue::ConstValueIndex {
+                tag,
+                const_value_index,
+            }
         }
         b'c' => {
             let class_info_index = r.read_u16::<BigEndian>()?;
@@ -764,24 +767,28 @@ fn read_target_info<R: Read>(r: &mut R) -> Result<TargetInfo, io::Error> {
     let target_type = r.read_u8()?;
 
     Ok(match target_type {
-        0x00 | 0x01 => read_type_parameter_target(r)?,
+        0x00 | 0x01 => read_type_parameter_target(r, target_type)?,
         0x10 => read_supertype_target(r)?,
-        0x11 | 0x12 => read_type_parameter_bound_target(r)?,
-        0x13 | 0x14 | 0x15 => TargetInfo::Empty,
+        0x11 | 0x12 => read_type_parameter_bound_target(r, target_type)?,
+        0x13 | 0x14 | 0x15 => TargetInfo::Empty(target_type),
         0x16 => read_formal_parameter_target(r)?,
         0x17 => read_throws_target(r)?,
-        0x40 | 0x41 => read_localvar_target(r)?,
+        0x40 | 0x41 => read_localvar_target(r, target_type)?,
         0x42 => read_catch_target(r)?,
-        0x43 | 0x44 | 0x45 | 0x46 => read_offset_target(r)?,
-        0x47 | 0x48 | 0x49 | 0x4A | 0x4B => read_type_argument_target(r)?,
+        0x43 | 0x44 | 0x45 | 0x46 => read_offset_target(r, target_type)?,
+        0x47 | 0x48 | 0x49 | 0x4A | 0x4B => read_type_argument_target(r, target_type)?,
         _ => unreachable!(),
     })
 }
 
-fn read_type_parameter_target<R: Read>(r: &mut R) -> Result<TargetInfo, io::Error> {
+fn read_type_parameter_target<R: Read>(
+    r: &mut R,
+    target_type: u8,
+) -> Result<TargetInfo, io::Error> {
     let type_parameter_index = r.read_u8()?;
 
     Ok(TargetInfo::TypeParameter {
+        target_type,
         type_parameter_index,
     })
 }
@@ -792,11 +799,15 @@ fn read_supertype_target<R: Read>(r: &mut R) -> Result<TargetInfo, io::Error> {
     Ok(TargetInfo::Supertype { supertype_index })
 }
 
-fn read_type_parameter_bound_target<R: Read>(r: &mut R) -> Result<TargetInfo, io::Error> {
+fn read_type_parameter_bound_target<R: Read>(
+    r: &mut R,
+    target_type: u8,
+) -> Result<TargetInfo, io::Error> {
     let type_parameter_index = r.read_u8()?;
     let bound_index = r.read_u8()?;
 
     Ok(TargetInfo::TypeParameterBound {
+        target_type,
         type_parameter_index,
         bound_index,
     })
@@ -816,7 +827,7 @@ fn read_throws_target<R: Read>(r: &mut R) -> Result<TargetInfo, io::Error> {
     Ok(TargetInfo::Throws { throws_type_index })
 }
 
-fn read_localvar_target<R: Read>(r: &mut R) -> Result<TargetInfo, io::Error> {
+fn read_localvar_target<R: Read>(r: &mut R, target_type: u8) -> Result<TargetInfo, io::Error> {
     let table_length = r.read_u16::<BigEndian>()?;
 
     let mut table = vec![];
@@ -831,7 +842,7 @@ fn read_localvar_target<R: Read>(r: &mut R) -> Result<TargetInfo, io::Error> {
         });
     }
 
-    Ok(TargetInfo::Localvar(table))
+    Ok(TargetInfo::Localvar { target_type, table })
 }
 
 fn read_catch_target<R: Read>(r: &mut R) -> Result<TargetInfo, io::Error> {
@@ -842,17 +853,21 @@ fn read_catch_target<R: Read>(r: &mut R) -> Result<TargetInfo, io::Error> {
     })
 }
 
-fn read_offset_target<R: Read>(r: &mut R) -> Result<TargetInfo, io::Error> {
+fn read_offset_target<R: Read>(r: &mut R, target_type: u8) -> Result<TargetInfo, io::Error> {
     let offset = r.read_u16::<BigEndian>()?;
 
-    Ok(TargetInfo::Offset { offset })
+    Ok(TargetInfo::Offset {
+        target_type,
+        offset,
+    })
 }
 
-fn read_type_argument_target<R: Read>(r: &mut R) -> Result<TargetInfo, io::Error> {
+fn read_type_argument_target<R: Read>(r: &mut R, target_type: u8) -> Result<TargetInfo, io::Error> {
     let offset = r.read_u16::<BigEndian>()?;
     let type_argument_index = r.read_u8()?;
 
     Ok(TargetInfo::TypeArgument {
+        target_type,
         offset,
         type_argument_index,
     })
@@ -952,39 +967,6 @@ fn read_module_provides<R: Read>(r: &mut R) -> Result<Vec<ModuleProvides>, io::E
 
     Ok(provides)
 }
-/*
-u2 module_name_index;
-u2 module_flags;
-u2 module_version_index;
-
-u2 requires_count;
-{   u2 requires_index;
-    u2 requires_flags;
-    u2 requires_version_index;
-} requires[requires_count];
-
-u2 exports_count;
-{   u2 exports_index;
-    u2 exports_flags;
-    u2 exports_to_count;
-    u2 exports_to_index[exports_to_count];
-} exports[exports_count];
-
-u2 opens_count;
-{   u2 opens_index;
-    u2 opens_flags;
-    u2 opens_to_count;
-    u2 opens_to_index[opens_to_count];
-} opens[opens_count];
-
-u2 uses_count;
-u2 uses_index[uses_count];
-
-u2 provides_count;
-{   u2 provides_index;
-    u2 provides_with_count;
-    u2 provides_with_index[provides_with_count];
-} provides[provides_count];*/
 
 fn read_verification_type<R: Read>(r: &mut R) -> Result<VerificationType, io::Error> {
     let tag = r.read_u8()?;

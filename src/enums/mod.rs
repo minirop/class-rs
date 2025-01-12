@@ -302,30 +302,37 @@ pub enum ElementValue {
 #[derive(Debug)]
 pub enum TargetInfo {
     TypeParameter {
+        target_type: u8,
         type_parameter_index: u8,
     },
     Supertype {
         supertype_index: u16,
     },
     TypeParameterBound {
+        target_type: u8,
         type_parameter_index: u8,
         bound_index: u8,
     },
-    Empty,
+    Empty(u8),
     FormalParameter {
         formal_parameter_index: u8,
     },
     Throws {
         throws_type_index: u16,
     },
-    Localvar(Vec<LocalVar>),
+    Localvar {
+        target_type: u8,
+        table: Vec<LocalVar>,
+    },
     Catch {
         exception_table_index: u16,
     },
     Offset {
+        target_type: u8,
         offset: u16,
     },
     TypeArgument {
+        target_type: u8,
         offset: u16,
         type_argument_index: u8,
     },

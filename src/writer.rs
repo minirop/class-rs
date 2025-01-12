@@ -1,6 +1,6 @@
-use std::io::SeekFrom;
 use byteorder::{BigEndian, WriteBytesExt};
-use std::io::{self, Write, Seek};
+use std::io::SeekFrom;
+use std::io::{self, Seek, Write};
 
 use crate::enums::{
     AccessFlag, Attribute, Constant, ElementValue, Instruction, StackMapFrameType, TargetInfo,
@@ -11,10 +11,8 @@ use crate::mapping::{
     MODULE_EXPORTS_FLAGS, MODULE_FLAGS, MODULE_OPENS_FLAGS, MODULE_REQUIRES_FLAGS,
 };
 use crate::structs::{
-    Annotation, BootstrapMethod, ElementValuePair, Field, InnerClass, LineNumber, LocalVar,
-    LocalVariable, LocalVariableType, LookupSwitchPair, MemberData, Method, MethodParameter,
-    ModuleExports, ModuleOpens, ModuleProvides, ModuleRequires, RecordComponent, StackMapFrame,
-    TypeAnnotation, TypePath,
+    Annotation, Field, Method, ModuleExports, ModuleOpens, ModuleProvides, ModuleRequires,
+    TypeAnnotation,
 };
 use crate::JVMClass;
 
@@ -150,7 +148,11 @@ pub fn write_constant_pool<W: Write>(
     Ok(())
 }
 
-pub fn write_attributes<W: Write + Seek>(w: &mut W, attributes: &Vec<Attribute>, jvm: &JVMClass) -> Result<(), io::Error> {
+pub fn write_attributes<W: Write + Seek>(
+    w: &mut W,
+    attributes: &Vec<Attribute>,
+    jvm: &JVMClass,
+) -> Result<(), io::Error> {
     w.write_u16::<BigEndian>(attributes.len() as u16)?;
 
     for attribute in attributes {
@@ -256,7 +258,8 @@ pub fn write_attributes<W: Write + Seek>(w: &mut W, attributes: &Vec<Attribute>,
                     let outer_class_info_index = &inner_class.outer_class_info_index;
                     let inner_name_index = &inner_class.inner_name_index;
                     let inner_class_access_flags = &inner_class.inner_class_access_flags;
-                    let inner_class_access_flags = compact_inner_class_flags(inner_class_access_flags);
+                    let inner_class_access_flags =
+                        compact_inner_class_flags(inner_class_access_flags);
 
                     w.write_u16::<BigEndian>(*inner_class_info_index)?;
                     w.write_u16::<BigEndian>(*outer_class_info_index)?;
@@ -268,13 +271,199 @@ pub fn write_attributes<W: Write + Seek>(w: &mut W, attributes: &Vec<Attribute>,
             }
             Attribute::RuntimeVisibleAnnotations(annotations) => {
                 write_annotations(w, annotations)?;
+
                 "RuntimeVisibleAnnotations"
             }
             Attribute::RuntimeInvisibleAnnotations(annotations) => {
                 write_annotations(w, annotations)?;
+
                 "RuntimeInvisibleAnnotations"
             }
-            _ => panic!("{attribute:?}"),
+            Attribute::ConstantValue {
+                constantvalue_index,
+            } => {
+                w.write_u16::<BigEndian>(*constantvalue_index)?;
+
+                "ConstantValue"
+            }
+            Attribute::EnclosingMethod {
+                class_index,
+                method_index,
+            } => {
+                w.write_u16::<BigEndian>(*class_index)?;
+                w.write_u16::<BigEndian>(*method_index)?;
+
+                "EnclosingMethod"
+            }
+            Attribute::Synthetic => "Synthetic",
+            Attribute::Signature { signature_index } => {
+                w.write_u16::<BigEndian>(*signature_index)?;
+
+                "Signature"
+            }
+            Attribute::SourceDebugExtension { debug_extension } => {
+                w.write(&debug_extension)?;
+
+                "SourceDebugExtension"
+            }
+            Attribute::Deprecated => "Deprecated",
+            Attribute::ModuleMainClass(main_class_index) => {
+                w.write_u16::<BigEndian>(*main_class_index)?;
+
+                "ModuleMainClass"
+            }
+            Attribute::NestHost(host_class_index) => {
+                w.write_u16::<BigEndian>(*host_class_index)?;
+
+                "NestHost"
+            }
+            Attribute::LocalVariableTable(local_variable_table) => {
+                w.write_u16::<BigEndian>(local_variable_table.len() as u16)?;
+
+                for local_variable in local_variable_table {
+                    w.write_u16::<BigEndian>(local_variable.start_pc)?;
+                    w.write_u16::<BigEndian>(local_variable.length)?;
+                    w.write_u16::<BigEndian>(local_variable.name_index)?;
+                    w.write_u16::<BigEndian>(local_variable.descriptor_index)?;
+                    w.write_u16::<BigEndian>(local_variable.index)?;
+                }
+
+                "LocalVariableTable"
+            }
+            Attribute::LocalVariableTypeTable(local_variable_type_table) => {
+                w.write_u16::<BigEndian>(local_variable_type_table.len() as u16)?;
+
+                for local_variable_type in local_variable_type_table {
+                    w.write_u16::<BigEndian>(local_variable_type.start_pc)?;
+                    w.write_u16::<BigEndian>(local_variable_type.length)?;
+                    w.write_u16::<BigEndian>(local_variable_type.name_index)?;
+                    w.write_u16::<BigEndian>(local_variable_type.signature_index)?;
+                    w.write_u16::<BigEndian>(local_variable_type.index)?;
+                }
+
+                "LocalVariableTypeTable"
+            }
+            Attribute::RuntimeVisibleParameterAnnotations(parameters_annotations) => {
+                w.write_u8(parameters_annotations.len() as u8)?;
+
+                for parameters_annotation in parameters_annotations {
+                    write_annotations(w, &parameters_annotation)?;
+                }
+
+                "RuntimeVisibleParameterAnnotations"
+            }
+            Attribute::RuntimeInvisibleParameterAnnotations(parameters_annotations) => {
+                w.write_u8(parameters_annotations.len() as u8)?;
+
+                for parameters_annotation in parameters_annotations {
+                    write_annotations(w, &parameters_annotation)?;
+                }
+
+                "RuntimeInvisibleParameterAnnotations"
+            }
+            Attribute::AnnotationDefault(element_value) => {
+                write_element_value(w, element_value)?;
+
+                "AnnotationDefault"
+            }
+            Attribute::MethodParameters(parameters) => {
+                w.write_u8(parameters.len() as u8)?;
+
+                for parameter in parameters {
+                    let access_flags = compact_method_parameter_flags(&parameter.access_flags);
+
+                    w.write_u16::<BigEndian>(parameter.name_index)?;
+                    w.write_u16::<BigEndian>(access_flags)?;
+                }
+
+                "MethodParameters"
+            }
+            Attribute::Module {
+                module_name_index,
+                module_flags,
+                module_version_index,
+                requires,
+                exports,
+                opens,
+                uses,
+                provides,
+            } => {
+                w.write_u16::<BigEndian>(*module_name_index)?;
+                let module_flags = compact_module_flags(module_flags);
+                w.write_u16::<BigEndian>(module_flags)?;
+                w.write_u16::<BigEndian>(*module_version_index)?;
+                write_module_requires(w, requires)?;
+                write_module_exports(w, exports)?;
+                write_module_opens(w, opens)?;
+
+                for used in uses {
+                    w.write_u16::<BigEndian>(*used)?;
+                }
+
+                write_module_provides(w, provides)?;
+
+                "Module"
+            }
+            Attribute::ModulePackages(packages_index) => {
+                w.write_u16::<BigEndian>(packages_index.len() as u16)?;
+
+                for package_index in packages_index {
+                    w.write_u16::<BigEndian>(*package_index)?;
+                }
+
+                "ModulePackages"
+            }
+            Attribute::NestMembers(classes) => {
+                w.write_u16::<BigEndian>(classes.len() as u16)?;
+
+                for class in classes {
+                    w.write_u16::<BigEndian>(*class)?;
+                }
+
+                "NestMembers"
+            }
+            Attribute::PermittedSubclasses(classes) => {
+                w.write_u16::<BigEndian>(classes.len() as u16)?;
+
+                for class in classes {
+                    w.write_u16::<BigEndian>(*class)?;
+                }
+
+                "PermittedSubclasses"
+            }
+            Attribute::Record(components) => {
+                w.write_u16::<BigEndian>(components.len() as u16)?;
+
+                for component in components {
+                    w.write_u16::<BigEndian>(component.name_index)?;
+                    w.write_u16::<BigEndian>(component.descriptor_index)?;
+                    write_attributes(w, &component.attributes, jvm)?;
+                }
+
+                "Record"
+            }
+            Attribute::RuntimeInvisibleTypeAnnotations(annotations) => {
+                w.write_u16::<BigEndian>(annotations.len() as u16)?;
+
+                for annotation in annotations {
+                    write_type_annotation(w, &annotation)?;
+                }
+
+                "RuntimeInvisibleTypeAnnotations"
+            }
+            Attribute::RuntimeVisibleTypeAnnotations(annotations) => {
+                w.write_u16::<BigEndian>(annotations.len() as u16)?;
+
+                for annotation in annotations {
+                    write_type_annotation(w, &annotation)?;
+                }
+
+                "RuntimeVisibleTypeAnnotations"
+            }
+            Attribute::Unknown { name, data } => {
+                w.write(&data)?;
+                name
+            }
         };
 
         let string_index = jvm.get_string_index(attr_name).unwrap();
@@ -290,18 +479,20 @@ pub fn write_attributes<W: Write + Seek>(w: &mut W, attributes: &Vec<Attribute>,
     Ok(())
 }
 
-pub fn write_fields<W: Write + Seek>(w: &mut W, fields: &Vec<Field>, jvm: &JVMClass) -> Result<(), io::Error> {
+pub fn write_fields<W: Write + Seek>(
+    w: &mut W,
+    fields: &Vec<Field>,
+    jvm: &JVMClass,
+) -> Result<(), io::Error> {
     w.write_u16::<BigEndian>(fields.len() as u16)?;
 
     for field in fields {
-        let access_flags = &field.0.access_flags;
-        let access_flags = compact_field_flags(access_flags);
-        let name = &field.0.name;
-        let descriptor = &field.0.descriptor;
+        let member_data = &field.0;
+        let access_flags = compact_field_flags(&member_data.access_flags);
         w.write_u16::<BigEndian>(access_flags)?;
-        w.write_u16::<BigEndian>(*name)?;
-        w.write_u16::<BigEndian>(*descriptor)?;
-        write_attributes(w, &field.0.attributes, jvm)?;
+        w.write_u16::<BigEndian>(member_data.name)?;
+        w.write_u16::<BigEndian>(member_data.descriptor)?;
+        write_attributes(w, &member_data.attributes, jvm)?;
     }
 
     Ok(())
@@ -317,18 +508,20 @@ pub fn write_interfaces<W: Write>(w: &mut W, interfaces: &Vec<u16>) -> Result<()
     Ok(())
 }
 
-pub fn write_methods<W: Write + Seek>(w: &mut W, methods: &Vec<Method>, jvm: &JVMClass) -> Result<(), io::Error> {
+pub fn write_methods<W: Write + Seek>(
+    w: &mut W,
+    methods: &Vec<Method>,
+    jvm: &JVMClass,
+) -> Result<(), io::Error> {
     w.write_u16::<BigEndian>(methods.len() as u16)?;
 
     for method in methods {
-        let access_flags = &method.0.access_flags;
-        let access_flags = compact_method_flags(access_flags);
-        let name = &method.0.name;
-        let descriptor = &method.0.descriptor;
+        let member_data = &method.0;
+        let access_flags = compact_method_flags(&member_data.access_flags);
         w.write_u16::<BigEndian>(access_flags)?;
-        w.write_u16::<BigEndian>(*name)?;
-        w.write_u16::<BigEndian>(*descriptor)?;
-        write_attributes(w, &method.0.attributes, jvm)?;
+        w.write_u16::<BigEndian>(member_data.name)?;
+        w.write_u16::<BigEndian>(member_data.descriptor)?;
+        write_attributes(w, &member_data.attributes, jvm)?;
     }
 
     Ok(())
@@ -378,7 +571,10 @@ fn compact_flags<T: Copy + std::cmp::PartialEq>(flags: &Vec<T>, mapping: &[(u16,
         .sum()
 }
 
-fn write_verification_type<W: Write>(w: &mut W, verification_type: &VerificationType) -> Result<(), io::Error> {
+fn write_verification_type<W: Write>(
+    w: &mut W,
+    verification_type: &VerificationType,
+) -> Result<(), io::Error> {
     match verification_type {
         VerificationType::Top => w.write_u8(0)?,
         VerificationType::Integer => w.write_u8(1)?,
@@ -400,13 +596,105 @@ fn write_verification_type<W: Write>(w: &mut W, verification_type: &Verification
     Ok(())
 }
 
-fn write_annotations<W: Write + Seek>(w: &mut W, annotations: &Vec<Annotation>) -> Result<(), io::Error> {
+fn write_annotations<W: Write + Seek>(
+    w: &mut W,
+    annotations: &Vec<Annotation>,
+) -> Result<(), io::Error> {
     w.write_u16::<BigEndian>(annotations.len() as u16)?;
 
     for annotation in annotations {
         write_annotation(w, annotation)?;
     }
 
+    Ok(())
+}
+
+fn write_type_annotation<W: Write + Seek>(
+    w: &mut W,
+    type_annotation: &TypeAnnotation,
+) -> Result<(), io::Error> {
+    write_target_info(w, &type_annotation.target_info)?;
+
+    for path in &type_annotation.target_path {
+        w.write_u8(path.type_path_kind)?;
+        w.write_u8(path.type_argument_index)?;
+    }
+
+    write_annotation(w, &type_annotation.annotation)?;
+
+    Ok(())
+}
+
+fn write_target_info<W: Write + Seek>(
+    w: &mut W,
+    target_info: &TargetInfo,
+) -> Result<(), io::Error> {
+    match target_info {
+        TargetInfo::TypeParameter {
+            target_type,
+            type_parameter_index,
+        } => {
+            w.write_u8(*target_type)?;
+            w.write_u8(*type_parameter_index)?;
+        }
+        TargetInfo::Supertype { supertype_index } => {
+            w.write_u8(0x10)?;
+            w.write_u16::<BigEndian>(*supertype_index)?;
+        }
+        TargetInfo::TypeParameterBound {
+            target_type,
+            type_parameter_index,
+            bound_index,
+        } => {
+            w.write_u8(*target_type)?;
+            w.write_u8(*type_parameter_index)?;
+            w.write_u8(*bound_index)?;
+        }
+        TargetInfo::Empty(target_type) => {
+            w.write_u8(*target_type)?;
+        }
+        TargetInfo::FormalParameter {
+            formal_parameter_index,
+        } => {
+            w.write_u8(0x16)?;
+            w.write_u8(*formal_parameter_index)?;
+        }
+        TargetInfo::Throws { throws_type_index } => {
+            w.write_u16::<BigEndian>(*throws_type_index)?;
+        }
+        TargetInfo::Localvar { target_type, table } => {
+            w.write_u8(*target_type)?;
+            w.write_u16::<BigEndian>(table.len() as u16)?;
+
+            for local_var in table {
+                w.write_u16::<BigEndian>(local_var.start_pc)?;
+                w.write_u16::<BigEndian>(local_var.length)?;
+                w.write_u16::<BigEndian>(local_var.index)?;
+            }
+        }
+        TargetInfo::Catch {
+            exception_table_index,
+        } => {
+            w.write_u8(0x42)?;
+            w.write_u16::<BigEndian>(*exception_table_index)?;
+        }
+        TargetInfo::Offset {
+            target_type,
+            offset,
+        } => {
+            w.write_u8(*target_type)?;
+            w.write_u16::<BigEndian>(*offset)?;
+        }
+        TargetInfo::TypeArgument {
+            target_type,
+            offset,
+            type_argument_index,
+        } => {
+            w.write_u8(*target_type)?;
+            w.write_u16::<BigEndian>(*offset)?;
+            w.write_u8(*type_argument_index)?;
+        }
+    }
     Ok(())
 }
 
@@ -422,9 +710,15 @@ fn write_annotation<W: Write + Seek>(w: &mut W, annotation: &Annotation) -> Resu
     Ok(())
 }
 
-fn write_element_value<W: Write + Seek>(w: &mut W, element_value: &ElementValue) -> Result<(), io::Error> {
+fn write_element_value<W: Write + Seek>(
+    w: &mut W,
+    element_value: &ElementValue,
+) -> Result<(), io::Error> {
     match element_value {
-        ElementValue::ConstValueIndex { tag, const_value_index } => {
+        ElementValue::ConstValueIndex {
+            tag,
+            const_value_index,
+        } => {
             w.write_u8(*tag)?;
             w.write_u16::<BigEndian>(*const_value_index)?;
         }
@@ -457,6 +751,77 @@ fn write_element_value<W: Write + Seek>(w: &mut W, element_value: &ElementValue)
     Ok(())
 }
 
+fn write_module_requires<W: Write + Seek>(
+    w: &mut W,
+    requires: &Vec<ModuleRequires>,
+) -> Result<(), io::Error> {
+    w.write_u16::<BigEndian>(requires.len() as u16)?;
+
+    for require in requires {
+        w.write_u16::<BigEndian>(require.requires_index)?;
+        let requires_flags = compact_module_requires_flags(&require.requires_flags);
+        w.write_u16::<BigEndian>(requires_flags)?;
+        w.write_u16::<BigEndian>(require.requires_version_index)?;
+    }
+
+    Ok(())
+}
+
+fn write_module_exports<W: Write + Seek>(
+    w: &mut W,
+    exports: &Vec<ModuleExports>,
+) -> Result<(), io::Error> {
+    w.write_u16::<BigEndian>(exports.len() as u16)?;
+
+    for export in exports {
+        w.write_u16::<BigEndian>(export.exports_index)?;
+        let exports_flags = compact_module_exports_flags(&export.exports_flags);
+        w.write_u16::<BigEndian>(exports_flags)?;
+
+        for export_to_index in &export.exports_to_index {
+            w.write_u16::<BigEndian>(*export_to_index)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn write_module_opens<W: Write + Seek>(
+    w: &mut W,
+    opens: &Vec<ModuleOpens>,
+) -> Result<(), io::Error> {
+    w.write_u16::<BigEndian>(opens.len() as u16)?;
+
+    for open in opens {
+        w.write_u16::<BigEndian>(open.opens_index)?;
+        let opens_flags = compact_module_opens_flags(&open.opens_flags);
+        w.write_u16::<BigEndian>(opens_flags)?;
+
+        for open_to_index in &open.opens_to_index {
+            w.write_u16::<BigEndian>(*open_to_index)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn write_module_provides<W: Write + Seek>(
+    w: &mut W,
+    provides: &Vec<ModuleProvides>,
+) -> Result<(), io::Error> {
+    w.write_u16::<BigEndian>(provides.len() as u16)?;
+
+    for provide in provides {
+        w.write_u16::<BigEndian>(provide.provides_index)?;
+
+        for provide_with_index in &provide.provides_with_index {
+            w.write_u16::<BigEndian>(*provide_with_index)?;
+        }
+    }
+
+    Ok(())
+}
+
 fn compile<W: Write + Seek>(w: &mut W, code: &Vec<Instruction>) -> Result<(), io::Error> {
     let code_start = w.seek(SeekFrom::Current(0))?;
     w.write_u32::<BigEndian>(0)?;
@@ -465,25 +830,21 @@ fn compile<W: Write + Seek>(w: &mut W, code: &Vec<Instruction>) -> Result<(), io
         match inst {
             Instruction::Nop => w.write_u8(0x00)?,
             Instruction::ANull => w.write_u8(0x01)?,
-            Instruction::IConst(i) => {
-                match i {
-                    -1 =>w.write_u8(0x02)?,
-                    0 => w.write_u8(0x03)?,
-                    1 => w.write_u8(0x04)?,
-                    2 => w.write_u8(0x05)?,
-                    3 => w.write_u8(0x06)?,
-                    4 => w.write_u8(0x07)?,
-                    5 => w.write_u8(0x08)?,
-                    _ => unreachable!(),
-                }
-            }
-            Instruction::LConst(l) => {
-                match l {
-                    0 => w.write_u8(0x09)?,
-                    1 => w.write_u8(0x0A)?,
-                    _ => unreachable!(),
-                }
-            }
+            Instruction::IConst(i) => match i {
+                -1 => w.write_u8(0x02)?,
+                0 => w.write_u8(0x03)?,
+                1 => w.write_u8(0x04)?,
+                2 => w.write_u8(0x05)?,
+                3 => w.write_u8(0x06)?,
+                4 => w.write_u8(0x07)?,
+                5 => w.write_u8(0x08)?,
+                _ => unreachable!(),
+            },
+            Instruction::LConst(l) => match l {
+                0 => w.write_u8(0x09)?,
+                1 => w.write_u8(0x0A)?,
+                _ => unreachable!(),
+            },
             Instruction::FConst(f) => {
                 if *f == 0.0 {
                     w.write_u8(0x0B)?;
@@ -524,66 +885,56 @@ fn compile<W: Write + Seek>(w: &mut W, code: &Vec<Instruction>) -> Result<(), io
                 w.write_u8(0x14)?;
                 w.write_u16::<BigEndian>(*index)?;
             }
-            Instruction::ILoad(index) => {
-                match index {
-                    0 => w.write_u8(0x1A)?,
-                    1 => w.write_u8(0x1B)?,
-                    2 => w.write_u8(0x1C)?,
-                    3 => w.write_u8(0x1D)?,
-                    _ => {
-                        w.write_u8(0x15)?;
-                        w.write_u8(*index)?;
-                    }
+            Instruction::ILoad(index) => match index {
+                0 => w.write_u8(0x1A)?,
+                1 => w.write_u8(0x1B)?,
+                2 => w.write_u8(0x1C)?,
+                3 => w.write_u8(0x1D)?,
+                _ => {
+                    w.write_u8(0x15)?;
+                    w.write_u8(*index)?;
                 }
-            }
-            Instruction::LLoad(index) => {
-                match index {
-                    0 => w.write_u8(0x1E)?,
-                    1 => w.write_u8(0x1F)?,
-                    2 => w.write_u8(0x20)?,
-                    3 => w.write_u8(0x21)?,
-                    _ => {
-                        w.write_u8(0x16)?;
-                        w.write_u8(*index)?;
-                    }
+            },
+            Instruction::LLoad(index) => match index {
+                0 => w.write_u8(0x1E)?,
+                1 => w.write_u8(0x1F)?,
+                2 => w.write_u8(0x20)?,
+                3 => w.write_u8(0x21)?,
+                _ => {
+                    w.write_u8(0x16)?;
+                    w.write_u8(*index)?;
                 }
-            }
-            Instruction::FLoad(index) => {
-                match index {
-                    0 => w.write_u8(0x22)?,
-                    1 => w.write_u8(0x23)?,
-                    2 => w.write_u8(0x24)?,
-                    3 => w.write_u8(0x25)?,
-                    _ => {
-                        w.write_u8(0x17)?;
-                        w.write_u8(*index)?;
-                    }
+            },
+            Instruction::FLoad(index) => match index {
+                0 => w.write_u8(0x22)?,
+                1 => w.write_u8(0x23)?,
+                2 => w.write_u8(0x24)?,
+                3 => w.write_u8(0x25)?,
+                _ => {
+                    w.write_u8(0x17)?;
+                    w.write_u8(*index)?;
                 }
-            }
-            Instruction::DLoad(index) => {
-                match index {
-                    0 => w.write_u8(0x26)?,
-                    1 => w.write_u8(0x27)?,
-                    2 => w.write_u8(0x28)?,
-                    3 => w.write_u8(0x29)?,
-                    _ => {
-                        w.write_u8(0x18)?;
-                        w.write_u8(*index)?;
-                    }
+            },
+            Instruction::DLoad(index) => match index {
+                0 => w.write_u8(0x26)?,
+                1 => w.write_u8(0x27)?,
+                2 => w.write_u8(0x28)?,
+                3 => w.write_u8(0x29)?,
+                _ => {
+                    w.write_u8(0x18)?;
+                    w.write_u8(*index)?;
                 }
-            }
-            Instruction::ALoad(index) => {
-                match index {
-                    0 => w.write_u8(0x2A)?,
-                    1 => w.write_u8(0x2B)?,
-                    2 => w.write_u8(0x2C)?,
-                    3 => w.write_u8(0x2D)?,
-                    _ => {
-                        w.write_u8(0x19)?;
-                        w.write_u8(*index)?;
-                    }
+            },
+            Instruction::ALoad(index) => match index {
+                0 => w.write_u8(0x2A)?,
+                1 => w.write_u8(0x2B)?,
+                2 => w.write_u8(0x2C)?,
+                3 => w.write_u8(0x2D)?,
+                _ => {
+                    w.write_u8(0x19)?;
+                    w.write_u8(*index)?;
                 }
-            }
+            },
             Instruction::IALoad => w.write_u8(0x2E)?,
             Instruction::LALoad => w.write_u8(0x2F)?,
             Instruction::FALoad => w.write_u8(0x30)?,
@@ -592,66 +943,56 @@ fn compile<W: Write + Seek>(w: &mut W, code: &Vec<Instruction>) -> Result<(), io
             Instruction::BALoad => w.write_u8(0x33)?,
             Instruction::CALoad => w.write_u8(0x34)?,
             Instruction::SALoad => w.write_u8(0x35)?,
-            Instruction::IStore(index) => {
-                match index {
-                    0 => w.write_u8(0x3B)?,
-                    1 => w.write_u8(0x3C)?,
-                    2 => w.write_u8(0x3D)?,
-                    3 => w.write_u8(0x3E)?,
-                    _ => {
-                        w.write_u8(0x36)?;
-                        w.write_u8(*index)?;
-                    }
+            Instruction::IStore(index) => match index {
+                0 => w.write_u8(0x3B)?,
+                1 => w.write_u8(0x3C)?,
+                2 => w.write_u8(0x3D)?,
+                3 => w.write_u8(0x3E)?,
+                _ => {
+                    w.write_u8(0x36)?;
+                    w.write_u8(*index)?;
                 }
-            }
-            Instruction::LStore(index) => {
-                match index {
-                    0 => w.write_u8(0x3F)?,
-                    1 => w.write_u8(0x40)?,
-                    2 => w.write_u8(0x41)?,
-                    3 => w.write_u8(0x42)?,
-                    _ => {
-                        w.write_u8(0x37)?;
-                        w.write_u8(*index)?;
-                    }
+            },
+            Instruction::LStore(index) => match index {
+                0 => w.write_u8(0x3F)?,
+                1 => w.write_u8(0x40)?,
+                2 => w.write_u8(0x41)?,
+                3 => w.write_u8(0x42)?,
+                _ => {
+                    w.write_u8(0x37)?;
+                    w.write_u8(*index)?;
                 }
-            }
-            Instruction::FStore(index) => {
-                match index {
-                    0 => w.write_u8(0x43)?,
-                    1 => w.write_u8(0x44)?,
-                    2 => w.write_u8(0x45)?,
-                    3 => w.write_u8(0x46)?,
-                    _ => {
-                        w.write_u8(0x38)?;
-                        w.write_u8(*index)?;
-                    }
+            },
+            Instruction::FStore(index) => match index {
+                0 => w.write_u8(0x43)?,
+                1 => w.write_u8(0x44)?,
+                2 => w.write_u8(0x45)?,
+                3 => w.write_u8(0x46)?,
+                _ => {
+                    w.write_u8(0x38)?;
+                    w.write_u8(*index)?;
                 }
-            }
-            Instruction::DStore(index) => {
-                match index {
-                    0 => w.write_u8(0x47)?,
-                    1 => w.write_u8(0x48)?,
-                    2 => w.write_u8(0x49)?,
-                    3 => w.write_u8(0x4A)?,
-                    _ => {
-                        w.write_u8(0x39)?;
-                        w.write_u8(*index)?;
-                    }
+            },
+            Instruction::DStore(index) => match index {
+                0 => w.write_u8(0x47)?,
+                1 => w.write_u8(0x48)?,
+                2 => w.write_u8(0x49)?,
+                3 => w.write_u8(0x4A)?,
+                _ => {
+                    w.write_u8(0x39)?;
+                    w.write_u8(*index)?;
                 }
-            }
-            Instruction::AStore(index) => {
-                match index {
-                    0 => w.write_u8(0x4B)?,
-                    1 => w.write_u8(0x4C)?,
-                    2 => w.write_u8(0x4D)?,
-                    3 => w.write_u8(0x4E)?,
-                    _ => {
-                        w.write_u8(0x3A)?;
-                        w.write_u8(*index)?;
-                    }
+            },
+            Instruction::AStore(index) => match index {
+                0 => w.write_u8(0x4B)?,
+                1 => w.write_u8(0x4C)?,
+                2 => w.write_u8(0x4D)?,
+                3 => w.write_u8(0x4E)?,
+                _ => {
+                    w.write_u8(0x3A)?;
+                    w.write_u8(*index)?;
                 }
-            }
+            },
             Instruction::IAStore => w.write_u8(0x4F)?,
             Instruction::LAStore => w.write_u8(0x50)?,
             Instruction::FAStore => w.write_u8(0x51)?,

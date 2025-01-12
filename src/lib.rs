@@ -4,7 +4,7 @@
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::error::Error;
-use std::io::{Read, Write, Seek};
+use std::io::{Read, Seek, Write};
 
 mod enums;
 pub use enums::{
