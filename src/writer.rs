@@ -266,6 +266,14 @@ pub fn write_attributes<W: Write + Seek>(w: &mut W, attributes: &Vec<Attribute>,
 
                 "InnerClasses"
             }
+            Attribute::RuntimeVisibleAnnotations(annotations) => {
+                write_annotations(w, annotations)?;
+                "RuntimeVisibleAnnotations"
+            }
+            Attribute::RuntimeInvisibleAnnotations(annotations) => {
+                write_annotations(w, annotations)?;
+                "RuntimeInvisibleAnnotations"
+            }
             _ => panic!("{attribute:?}"),
         };
 
@@ -386,6 +394,63 @@ fn write_verification_type<W: Write>(w: &mut W, verification_type: &Verification
         VerificationType::Uninitialized { offset } => {
             w.write_u8(8)?;
             w.write_u16::<BigEndian>(*offset)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn write_annotations<W: Write + Seek>(w: &mut W, annotations: &Vec<Annotation>) -> Result<(), io::Error> {
+    w.write_u16::<BigEndian>(annotations.len() as u16)?;
+
+    for annotation in annotations {
+        write_annotation(w, annotation)?;
+    }
+
+    Ok(())
+}
+
+fn write_annotation<W: Write + Seek>(w: &mut W, annotation: &Annotation) -> Result<(), io::Error> {
+    w.write_u16::<BigEndian>(annotation.type_index)?;
+    w.write_u16::<BigEndian>(annotation.element_value_pairs.len() as u16)?;
+
+    for pair in &annotation.element_value_pairs {
+        w.write_u16::<BigEndian>(pair.element_name_index)?;
+        write_element_value(w, &pair.value)?;
+    }
+
+    Ok(())
+}
+
+fn write_element_value<W: Write + Seek>(w: &mut W, element_value: &ElementValue) -> Result<(), io::Error> {
+    match element_value {
+        ElementValue::ConstValueIndex { tag, const_value_index } => {
+            w.write_u8(*tag)?;
+            w.write_u16::<BigEndian>(*const_value_index)?;
+        }
+        ElementValue::ClassInfoIndex(class_info_index) => {
+            w.write_u8(b'c')?;
+            w.write_u16::<BigEndian>(*class_info_index)?;
+        }
+        ElementValue::EnumConstValue {
+            type_name_index,
+            const_name_index,
+        } => {
+            w.write_u8(b'e')?;
+            w.write_u16::<BigEndian>(*type_name_index)?;
+            w.write_u16::<BigEndian>(*const_name_index)?;
+        }
+        ElementValue::AnnotationValue(annotation) => {
+            w.write_u8(b'@')?;
+            write_annotation(w, annotation)?;
+        }
+        ElementValue::ArrayValue(values) => {
+            w.write_u8(b'[')?;
+            w.write_u16::<BigEndian>(values.len() as u16)?;
+
+            for value in values {
+                write_element_value(w, &value)?;
+            }
         }
     }
 
@@ -669,12 +734,99 @@ fn compile<W: Write + Seek>(w: &mut W, code: &Vec<Instruction>) -> Result<(), io
                 w.write_u8(0x99)?;
                 w.write_i16::<BigEndian>(*branch)?;
             }
-            //
+            Instruction::Ifne(branch) => {
+                w.write_u8(0x9A)?;
+                w.write_i16::<BigEndian>(*branch)?;
+            }
+            Instruction::Iflt(branch) => {
+                w.write_u8(0x9B)?;
+                w.write_i16::<BigEndian>(*branch)?;
+            }
             Instruction::Ifge(branch) => {
                 w.write_u8(0x9C)?;
                 w.write_i16::<BigEndian>(*branch)?;
             }
-            // TODO
+            Instruction::Ifgt(branch) => {
+                w.write_u8(0x9D)?;
+                w.write_i16::<BigEndian>(*branch)?;
+            }
+            Instruction::Ifle(branch) => {
+                w.write_u8(0x9E)?;
+                w.write_i16::<BigEndian>(*branch)?;
+            }
+            Instruction::IfIcmpeq(branch) => {
+                w.write_u8(0x9F)?;
+                w.write_i16::<BigEndian>(*branch)?;
+            }
+            Instruction::IfIcmpne(branch) => {
+                w.write_u8(0xA0)?;
+                w.write_i16::<BigEndian>(*branch)?;
+            }
+            Instruction::IfIcmplt(branch) => {
+                w.write_u8(0xA1)?;
+                w.write_i16::<BigEndian>(*branch)?;
+            }
+            Instruction::IfIcmpge(branch) => {
+                w.write_u8(0xA2)?;
+                w.write_i16::<BigEndian>(*branch)?;
+            }
+            Instruction::IfIcmpgt(branch) => {
+                w.write_u8(0xA3)?;
+                w.write_i16::<BigEndian>(*branch)?;
+            }
+            Instruction::IfIcmple(branch) => {
+                w.write_u8(0xA4)?;
+                w.write_i16::<BigEndian>(*branch)?;
+            }
+            Instruction::IfAcmpeq(branch) => {
+                w.write_u8(0xA5)?;
+                w.write_i16::<BigEndian>(*branch)?;
+            }
+            Instruction::IfAcmpne(branch) => {
+                w.write_u8(0xA6)?;
+                w.write_i16::<BigEndian>(*branch)?;
+            }
+            Instruction::Goto(branch) => {
+                w.write_u8(0xA7)?;
+                w.write_i16::<BigEndian>(*branch)?;
+            }
+            Instruction::Jsr(branch) => {
+                w.write_u8(0xA8)?;
+                w.write_i16::<BigEndian>(*branch)?;
+            }
+            Instruction::TableSwitch {
+                minimum,
+                maximum,
+                jump_targets,
+                default,
+            } => {
+                w.write_u8(0xA9)?;
+
+                w.write_u32::<BigEndian>(*default)?;
+                w.write_u32::<BigEndian>(*minimum)?;
+                w.write_u32::<BigEndian>(*maximum)?;
+
+                for jump_target in jump_targets {
+                    w.write_u32::<BigEndian>(*jump_target)?;
+                }
+            }
+            Instruction::LookupSwitch { default, pairs } => {
+                w.write_u8(0xAB)?;
+
+                let pos = w.seek(SeekFrom::Current(0))?;
+                let offset = (4 - (pos % 4)) % 4;
+                for _ in 0..offset {
+                    w.write_u8(0)?;
+                }
+
+                w.write_u32::<BigEndian>(*default)?;
+                w.write_u32::<BigEndian>(pairs.len() as u32)?;
+
+                for pair in pairs {
+                    w.write_u32::<BigEndian>(pair.value)?;
+                    w.write_u32::<BigEndian>(pair.target)?;
+                }
+            }
             Instruction::IReturn => w.write_u8(0xAC)?,
             Instruction::LReturn => w.write_u8(0xAD)?,
             Instruction::FReturn => w.write_u8(0xAE)?,
