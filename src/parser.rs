@@ -767,109 +767,85 @@ fn read_target_info<R: Read>(r: &mut R) -> Result<TargetInfo, io::Error> {
     let target_type = r.read_u8()?;
 
     Ok(match target_type {
-        0x00 | 0x01 => read_type_parameter_target(r, target_type)?,
-        0x10 => read_supertype_target(r)?,
-        0x11 | 0x12 => read_type_parameter_bound_target(r, target_type)?,
+        0x00 | 0x01 => {
+            let type_parameter_index = r.read_u8()?;
+
+            TargetInfo::TypeParameter {
+                target_type,
+                type_parameter_index,
+            }
+        }
+        0x10 => {
+            let supertype_index = r.read_u16::<BigEndian>()?;
+
+            TargetInfo::Supertype { supertype_index }
+        }
+        0x11 | 0x12 => {
+            let type_parameter_index = r.read_u8()?;
+            let bound_index = r.read_u8()?;
+
+            TargetInfo::TypeParameterBound {
+                target_type,
+                type_parameter_index,
+                bound_index,
+            }
+        }
         0x13 | 0x14 | 0x15 => TargetInfo::Empty(target_type),
-        0x16 => read_formal_parameter_target(r)?,
-        0x17 => read_throws_target(r)?,
-        0x40 | 0x41 => read_localvar_target(r, target_type)?,
-        0x42 => read_catch_target(r)?,
-        0x43 | 0x44 | 0x45 | 0x46 => read_offset_target(r, target_type)?,
-        0x47 | 0x48 | 0x49 | 0x4A | 0x4B => read_type_argument_target(r, target_type)?,
+        0x16 => {
+            let formal_parameter_index = r.read_u8()?;
+
+            TargetInfo::FormalParameter {
+                formal_parameter_index,
+            }
+        }
+        0x17 => {
+            let throws_type_index = r.read_u16::<BigEndian>()?;
+
+            TargetInfo::Throws { throws_type_index }
+        }
+        0x40 | 0x41 => {
+            let table_length = r.read_u16::<BigEndian>()?;
+
+            let mut table = vec![];
+            for _ in 0..table_length {
+                let start_pc = r.read_u16::<BigEndian>()?;
+                let length = r.read_u16::<BigEndian>()?;
+                let index = r.read_u16::<BigEndian>()?;
+                table.push(LocalVar {
+                    start_pc,
+                    length,
+                    index,
+                });
+            }
+
+            TargetInfo::Localvar { target_type, table }
+        }
+        0x42 => {
+            let exception_table_index = r.read_u16::<BigEndian>()?;
+
+            TargetInfo::Catch {
+                exception_table_index,
+            }
+        }
+        0x43 | 0x44 | 0x45 | 0x46 => {
+            let offset = r.read_u16::<BigEndian>()?;
+
+            TargetInfo::Offset {
+                target_type,
+                offset,
+            }
+        }
+        0x47 | 0x48 | 0x49 | 0x4A | 0x4B => {
+            let offset = r.read_u16::<BigEndian>()?;
+            let type_argument_index = r.read_u8()?;
+
+            TargetInfo::TypeArgument {
+                target_type,
+                offset,
+                type_argument_index,
+            }
+        }
         _ => unreachable!(),
-    })
-}
-
-fn read_type_parameter_target<R: Read>(
-    r: &mut R,
-    target_type: u8,
-) -> Result<TargetInfo, io::Error> {
-    let type_parameter_index = r.read_u8()?;
-
-    Ok(TargetInfo::TypeParameter {
-        target_type,
-        type_parameter_index,
-    })
-}
-
-fn read_supertype_target<R: Read>(r: &mut R) -> Result<TargetInfo, io::Error> {
-    let supertype_index = r.read_u16::<BigEndian>()?;
-
-    Ok(TargetInfo::Supertype { supertype_index })
-}
-
-fn read_type_parameter_bound_target<R: Read>(
-    r: &mut R,
-    target_type: u8,
-) -> Result<TargetInfo, io::Error> {
-    let type_parameter_index = r.read_u8()?;
-    let bound_index = r.read_u8()?;
-
-    Ok(TargetInfo::TypeParameterBound {
-        target_type,
-        type_parameter_index,
-        bound_index,
-    })
-}
-
-fn read_formal_parameter_target<R: Read>(r: &mut R) -> Result<TargetInfo, io::Error> {
-    let formal_parameter_index = r.read_u8()?;
-
-    Ok(TargetInfo::FormalParameter {
-        formal_parameter_index,
-    })
-}
-
-fn read_throws_target<R: Read>(r: &mut R) -> Result<TargetInfo, io::Error> {
-    let throws_type_index = r.read_u16::<BigEndian>()?;
-
-    Ok(TargetInfo::Throws { throws_type_index })
-}
-
-fn read_localvar_target<R: Read>(r: &mut R, target_type: u8) -> Result<TargetInfo, io::Error> {
-    let table_length = r.read_u16::<BigEndian>()?;
-
-    let mut table = vec![];
-    for _ in 0..table_length {
-        let start_pc = r.read_u16::<BigEndian>()?;
-        let length = r.read_u16::<BigEndian>()?;
-        let index = r.read_u16::<BigEndian>()?;
-        table.push(LocalVar {
-            start_pc,
-            length,
-            index,
-        });
-    }
-
-    Ok(TargetInfo::Localvar { target_type, table })
-}
-
-fn read_catch_target<R: Read>(r: &mut R) -> Result<TargetInfo, io::Error> {
-    let exception_table_index = r.read_u16::<BigEndian>()?;
-
-    Ok(TargetInfo::Catch {
-        exception_table_index,
-    })
-}
-
-fn read_offset_target<R: Read>(r: &mut R, target_type: u8) -> Result<TargetInfo, io::Error> {
-    let offset = r.read_u16::<BigEndian>()?;
-
-    Ok(TargetInfo::Offset {
-        target_type,
-        offset,
-    })
-}
-
-fn read_type_argument_target<R: Read>(r: &mut R, target_type: u8) -> Result<TargetInfo, io::Error> {
-    let offset = r.read_u16::<BigEndian>()?;
-    let type_argument_index = r.read_u8()?;
-
-    Ok(TargetInfo::TypeArgument {
-        target_type,
-        offset,
-        type_argument_index,
     })
 }
 
