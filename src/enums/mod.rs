@@ -94,7 +94,7 @@ pub enum Constant {
         class_index: u16,
         name_and_type_index: u16,
     },
-    /// Used for the first entry, and the second entry of doubles and longs.
+    /// Used for the first entry in the constant pool, and the second entry of doubles and longs.
     Invalid,
     InvokeDynamic {
         bootstrap_method_attr_index: u16,
@@ -125,6 +125,7 @@ pub enum Constant {
     String {
         string_index: u16,
     },
+    /// ⚠️ It is using Rust's String type and not the JVM's modified UTF-8. If you have a string that makes that crate panic, open an issue.
     Utf8(String),
 }
 

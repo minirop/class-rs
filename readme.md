@@ -1,6 +1,6 @@
 # class-rs
 
-Reads a .class file into an almost 1-to-1 matching struct or generate a .class file from said structure.\
+Reads a .class file into an almost 1-to-1 matching struct or generates a .class file from said structure.\
 ⚠️ `Constant::Utf8` are using Rust's String type and not the JVM's modified UTF-8. If you have a string that makes that crate panic, open an issue.
 
 ## Example

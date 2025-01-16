@@ -1,6 +1,6 @@
 //! JVM class file reader
 //!
-//! Reads a .class file into an almost 1-to-1 matching struct.
+//! Reads a .class file into an almost 1-to-1 matching struct or generates a .class file from said structure.
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::error::Error;
@@ -20,8 +20,8 @@ pub use structs::{
     TypePath,
 };
 
-mod parser;
-use crate::parser::{
+mod reader;
+use crate::reader::{
     extract_class_flags, read_attributes, read_constant_pool, read_fields, read_interfaces,
     read_methods,
 };
