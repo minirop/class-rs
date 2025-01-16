@@ -1202,7 +1202,11 @@ fn compile<W: Write + Seek>(w: &mut W, code: &Vec<Instruction>) -> Result<(), io
                 w.write_u8(0xB8)?;
                 w.write_u16::<BigEndian>(*index)?;
             }
-            // TODO
+            Instruction::InvokeInterface { index, count } => {
+                w.write_u8(0xB9)?;
+                w.write_u16::<BigEndian>(*index)?;
+                w.write_u8(*count)?;
+            }
             Instruction::InvokeDynamic(index) => {
                 w.write_u8(0xBA)?;
                 w.write_u16::<BigEndian>(*index)?;
@@ -1212,10 +1216,73 @@ fn compile<W: Write + Seek>(w: &mut W, code: &Vec<Instruction>) -> Result<(), io
                 w.write_u8(0xBB)?;
                 w.write_u16::<BigEndian>(*index)?;
             }
-            //
+            Instruction::NewArray(atype) => {
+                w.write_u8(0xBC)?;
+                w.write_u8(*atype)?;
+            }
+            Instruction::ANewArray(index) => {
+                w.write_u8(0xBD)?;
+                w.write_u16::<BigEndian>(*index)?;
+            }
             Instruction::ArrayLength => w.write_u8(0xBE)?,
             Instruction::AThrow => w.write_u8(0xBF)?,
-            _ => panic!("{inst:?}"),
+            Instruction::CheckCast(index) => {
+                w.write_u8(0xC0)?;
+                w.write_u16::<BigEndian>(*index)?;
+            }
+            Instruction::InstanceOf(index) => {
+                w.write_u8(0xC1)?;
+                w.write_u16::<BigEndian>(*index)?;
+            }
+            Instruction::MonitorEnter => w.write_u8(0xC2)?,
+            Instruction::MonitorExit => w.write_u8(0xC3)?,
+            Instruction::MultiANewArray(index, dimensions) => {
+                w.write_u8(0xC5)?;
+                w.write_u16::<BigEndian>(*index)?;
+                w.write_u8(*dimensions)?;
+            }
+            Instruction::IfNull(index) => {
+                w.write_u8(0xC6)?;
+                w.write_u16::<BigEndian>(*index)?;
+            }
+            Instruction::IfNonNull(index) => {
+                w.write_u8(0xC7)?;
+                w.write_u16::<BigEndian>(*index)?;
+            }
+            Instruction::GotoW(branch) => {
+                w.write_u8(0xC8)?;
+                w.write_u32::<BigEndian>(*branch)?;
+            }
+            Instruction::JsrW(branch) => {
+                w.write_u8(0xC9)?;
+                w.write_u32::<BigEndian>(*branch)?;
+            }
+            _ => { // 0xC4
+                w.write_u8(0xC9)?;
+
+                let (opcode, index, count) = match inst {
+                    Instruction::ILoadW(index) => (0x15, *index, None),
+                    Instruction::LLoadW(index) => (0x16, *index, None),
+                    Instruction::FLoadW(index) => (0x17, *index, None),
+                    Instruction::DLoadW(index) => (0x18, *index, None),
+                    Instruction::ALoadW(index) => (0x19, *index, None),
+                    Instruction::IStoreW(index) => (0x36, *index, None),
+                    Instruction::LStoreW(index) => (0x37, *index, None),
+                    Instruction::FStoreW(index) => (0x38, *index, None),
+                    Instruction::DStoreW(index) => (0x39, *index, None),
+                    Instruction::AStoreW(index) => (0x3A, *index, None),
+                    Instruction::RetW(index) => (0xA9, *index, None),
+                    Instruction::IIncW(index, count) => (0x84, *index, Some(*count)),
+                    _ => unreachable!(),
+                };
+
+                w.write_u8(opcode)?;
+                w.write_u16::<BigEndian>(index)?;
+
+                if let Some(count) = count {
+                    w.write_u16::<BigEndian>(count)?;
+                }
+            },
         }
     }
 

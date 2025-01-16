@@ -1375,8 +1375,8 @@ fn decompile<R: Read>(r: &mut R) -> Result<Vec<Instruction>, io::Error> {
                     0x37 => Instruction::LStoreW(index),
                     0x38 => Instruction::FStoreW(index),
                     0x39 => Instruction::DStoreW(index),
-                    0x3a => Instruction::AStoreW(index),
-                    0xa9 => Instruction::RetW(index),
+                    0x3A => Instruction::AStoreW(index),
+                    0xA9 => Instruction::RetW(index),
                     0x84 => {
                         let count = cursor.read_u16::<BigEndian>()?;
                         Instruction::IIncW(index, count)
