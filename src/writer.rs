@@ -1136,12 +1136,17 @@ fn compile<W: Write + Seek>(w: &mut W, code: &Vec<Instruction>) -> Result<(), io
                 w.write_i16::<BigEndian>(*branch)?;
             }
             Instruction::TableSwitch {
+                padding,
                 minimum,
                 maximum,
                 jump_targets,
                 default,
             } => {
                 w.write_u8(0xA9)?;
+
+                for _ in 0..*padding {
+                    w.write_u8(0)?;
+                }
 
                 w.write_u32::<BigEndian>(*default)?;
                 w.write_u32::<BigEndian>(*minimum)?;
@@ -1151,12 +1156,10 @@ fn compile<W: Write + Seek>(w: &mut W, code: &Vec<Instruction>) -> Result<(), io
                     w.write_u32::<BigEndian>(*jump_target)?;
                 }
             }
-            Instruction::LookupSwitch { default, pairs } => {
+            Instruction::LookupSwitch { padding, default, pairs } => {
                 w.write_u8(0xAB)?;
 
-                let pos = w.seek(SeekFrom::Current(0))?;
-                let offset = (4 - (pos % 4)) % 4;
-                for _ in 0..offset {
+                for _ in 0..*padding {
                     w.write_u8(0)?;
                 }
 

@@ -140,6 +140,7 @@ pub enum Instruction {
     LMul,
     LNeg,
     LookupSwitch {
+        padding: u32,
         default: u32,
         pairs: Vec<LookupSwitchPair>,
     },
@@ -171,6 +172,7 @@ pub enum Instruction {
     Sipush(i16),
     Swap,
     TableSwitch {
+        padding: u32,
         minimum: u32,
         maximum: u32,
         jump_targets: Vec<u32>,

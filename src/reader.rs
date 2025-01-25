@@ -1252,6 +1252,7 @@ fn decompile<R: Read>(r: &mut R) -> Result<Vec<Instruction>, io::Error> {
             0xAA => {
                 let pos = cursor.seek(SeekFrom::Current(0))?;
                 let offset = ((4 - (pos % 4)) % 4) as i64;
+                let padding = (offset as u64 - pos) as u32;
                 cursor.seek(SeekFrom::Current(offset))?;
 
                 let default = cursor.read_u32::<BigEndian>()?;
@@ -1267,6 +1268,7 @@ fn decompile<R: Read>(r: &mut R) -> Result<Vec<Instruction>, io::Error> {
                 assert_eq!(jump_targets.len() as u32, maximum - minimum + 1);
 
                 Instruction::TableSwitch {
+                    padding,
                     minimum,
                     maximum,
                     jump_targets,
@@ -1276,6 +1278,7 @@ fn decompile<R: Read>(r: &mut R) -> Result<Vec<Instruction>, io::Error> {
             0xAB => {
                 let pos = cursor.seek(SeekFrom::Current(0))?;
                 let offset = ((4 - (pos % 4)) % 4) as i64;
+                let padding = (offset as u64 - pos) as u32;
                 cursor.seek(SeekFrom::Current(offset))?;
 
                 let default = cursor.read_u32::<BigEndian>()?;
@@ -1290,7 +1293,7 @@ fn decompile<R: Read>(r: &mut R) -> Result<Vec<Instruction>, io::Error> {
                     pairs.push(LookupSwitchPair { value, target });
                 }
 
-                Instruction::LookupSwitch { default, pairs }
+                Instruction::LookupSwitch { padding, default, pairs }
             }
             0xAC => Instruction::IReturn,
             0xAD => Instruction::LReturn,
