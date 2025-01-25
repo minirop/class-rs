@@ -385,8 +385,14 @@ pub fn read_attributes<R: Read>(
                     let frame_type = r.read_u8()?;
                     frame.frame_type = match frame_type {
                         0..=63 => StackMapFrameType::SameFrame(frame_type),
-                        64..=127 => StackMapFrameType::SameLocals1StackItemFrame(frame_type),
-                        247 => StackMapFrameType::SameLocals1StackItemFrameExtended,
+                        64..=127 => {
+                            frame.stack.push(read_verification_type(r)?);
+                            StackMapFrameType::SameLocals1StackItemFrame(frame_type)
+                        },
+                        247 => {
+                            frame.stack.push(read_verification_type(r)?);
+                            StackMapFrameType::SameLocals1StackItemFrameExtended
+                        },
                         248..=250 => {
                             frame.offset_delta = r.read_u16::<BigEndian>()?;
                             StackMapFrameType::ChopFrame(frame_type)
@@ -405,7 +411,21 @@ pub fn read_attributes<R: Read>(
 
                             StackMapFrameType::AppendFrame(frame_type)
                         }
-                        255 => StackMapFrameType::FullFrame,
+                        255 => {
+                            let number_of_locals = r.read_u16::<BigEndian>()?;
+                            for _ in 0..number_of_locals {
+                                let verification_type = read_verification_type(r)?;
+                                frame.locals.push(verification_type);
+                            }
+
+                            let number_of_stack_items = r.read_u16::<BigEndian>()?;
+                            for _ in 0..number_of_stack_items {
+                                let verification_type = read_verification_type(r)?;
+                                frame.stack.push(verification_type);
+                            }
+
+                            StackMapFrameType::FullFrame
+                        },
                         _ => unreachable!(),
                     };
 

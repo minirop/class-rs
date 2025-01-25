@@ -195,9 +195,11 @@ pub fn write_attributes<W: Write + Seek>(
                         }
                         StackMapFrameType::SameLocals1StackItemFrame(frame_type) => {
                             w.write_u8(frame_type)?;
+                            write_verification_type(w, &frame.stack[0])?;
                         }
                         StackMapFrameType::SameLocals1StackItemFrameExtended => {
                             w.write_u8(247)?;
+                            write_verification_type(w, &frame.stack[0])?;
                         }
                         StackMapFrameType::ChopFrame(frame_type) => {
                             w.write_u8(frame_type)?;
@@ -216,6 +218,14 @@ pub fn write_attributes<W: Write + Seek>(
                         }
                         StackMapFrameType::FullFrame => {
                             w.write_u8(255)?;
+                            w.write_u16::<BigEndian>(frame.locals.len() as u16)?;
+                            for verification_type in &frame.locals {
+                                write_verification_type(w, verification_type)?;
+                            }
+                            w.write_u16::<BigEndian>(frame.stack.len() as u16)?;
+                            for verification_type in &frame.stack {
+                                write_verification_type(w, verification_type)?;
+                            }
                         }
                     }
                 }
