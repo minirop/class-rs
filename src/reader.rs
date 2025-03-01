@@ -25,7 +25,11 @@ pub fn read_constant_pool<R: Read>(r: &mut R) -> Result<Vec<Constant>, io::Error
 
     let mut constants = vec![Constant::Invalid];
 
-    for _ in 1..count {
+    let mut double_constants = 0;
+    for i in 1..count {
+        if i >= count - double_constants {
+            break;
+        }
         let tag = r.read_u8()?;
         let cnst = match tag {
             1 => {
@@ -46,10 +50,12 @@ pub fn read_constant_pool<R: Read>(r: &mut R) -> Result<Vec<Constant>, io::Error
                 Constant::Float(value)
             }
             5 => {
+                double_constants += 1;
                 let value = r.read_i64::<BigEndian>()?;
                 Constant::Long(value)
             }
             6 => {
+                double_constants += 1;
                 let value = r.read_f64::<BigEndian>()?;
                 Constant::Double(value)
             }
