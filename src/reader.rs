@@ -1278,7 +1278,7 @@ fn decompile<R: Read>(r: &mut R) -> Result<Vec<Instruction>, io::Error> {
             0xAA => {
                 let pos = cursor.seek(SeekFrom::Current(0))?;
                 let offset = ((4 - (pos % 4)) % 4) as i64;
-                let padding = (offset as u64 - pos) as u32;
+                let padding = offset as u32;
                 cursor.seek(SeekFrom::Current(offset))?;
 
                 let default = cursor.read_u32::<BigEndian>()?;
