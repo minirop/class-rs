@@ -1018,6 +1018,10 @@ fn decompile<R: Read>(r: &mut R) -> Result<Vec<Instruction>, io::Error> {
     r.read(&mut code).unwrap();
     let mut cursor = Cursor::new(code);
 
+    // so we can't read from r instead of cursor
+    #[allow(unused)]
+    let r: &R = r;
+
     while cursor.seek(SeekFrom::Current(0))? < code_length {
         let opcode = cursor.read_u8()?;
 
@@ -1200,8 +1204,8 @@ fn decompile<R: Read>(r: &mut R) -> Result<Vec<Instruction>, io::Error> {
             0x82 => Instruction::IXor,
             0x83 => Instruction::LXor,
             0x84 => {
-                let index = r.read_u8()?;
-                let count = r.read_i8()?;
+                let index = cursor.read_u8()?;
+                let count = cursor.read_i8()?;
                 Instruction::IInc(index, count)
             }
             0x85 => Instruction::I2L,
