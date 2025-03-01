@@ -8,10 +8,10 @@ use crate::enums::{
     VerificationType,
 };
 use crate::structs::{
-    Annotation, BootstrapMethod, ElementValuePair, Field, InnerClass, LineNumber, LocalVar,
-    LocalVariable, LocalVariableType, LookupSwitchPair, MemberData, Method, MethodParameter,
-    ModuleExports, ModuleOpens, ModuleProvides, ModuleRequires, RecordComponent, StackMapFrame,
-    TypeAnnotation, TypePath,
+    Annotation, BootstrapMethod, ElementValuePair, ExceptionTableEntry, Field, InnerClass,
+    LineNumber, LocalVar, LocalVariable, LocalVariableType, LookupSwitchPair, MemberData, Method,
+    MethodParameter, ModuleExports, ModuleOpens, ModuleProvides, ModuleRequires, RecordComponent,
+    StackMapFrame, TypeAnnotation, TypePath,
 };
 use crate::JVMClass;
 
@@ -365,14 +365,29 @@ pub fn read_attributes<R: Read>(
                 let max_stack = r.read_u16::<BigEndian>()?;
                 let max_locals = r.read_u16::<BigEndian>()?;
                 let code = decompile(r)?;
+
                 let exception_table_length = r.read_u16::<BigEndian>()?;
-                assert_eq!(exception_table_length, 0);
+                let mut exception_table = vec![];
+                for _ in 0..exception_table_length {
+                    let start_pc = r.read_u16::<BigEndian>()?;
+                    let end_pc = r.read_u16::<BigEndian>()?;
+                    let handler_pc = r.read_u16::<BigEndian>()?;
+                    let catch_type = r.read_u16::<BigEndian>()?;
+
+                    exception_table.push(ExceptionTableEntry {
+                        start_pc,
+                        end_pc,
+                        handler_pc,
+                        catch_type,
+                    });
+                }
                 let attributes = read_attributes(jvm, r)?;
 
                 Attribute::Code {
                     code,
                     max_stack,
                     max_locals,
+                    exception_table,
                     attributes,
                 }
             }

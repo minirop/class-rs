@@ -1,7 +1,7 @@
 use crate::structs::{
-    Annotation, BootstrapMethod, InnerClass, LineNumber, LocalVar, LocalVariable,
-    LocalVariableType, MethodParameter, ModuleExports, ModuleOpens, ModuleProvides, ModuleRequires,
-    RecordComponent, StackMapFrame, TypeAnnotation,
+    Annotation, BootstrapMethod, ExceptionTableEntry, InnerClass, LineNumber, LocalVar,
+    LocalVariable, LocalVariableType, MethodParameter, ModuleExports, ModuleOpens, ModuleProvides,
+    ModuleRequires, RecordComponent, StackMapFrame, TypeAnnotation,
 };
 
 mod instructions;
@@ -206,6 +206,7 @@ pub enum Attribute {
         code: Vec<Instruction>,
         max_stack: u16,
         max_locals: u16,
+        exception_table: Vec<ExceptionTableEntry>,
         attributes: Vec<Attribute>,
     },
     ConstantValue {

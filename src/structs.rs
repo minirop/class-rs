@@ -139,3 +139,11 @@ pub struct TypeAnnotation {
     pub target_path: Vec<TypePath>,
     pub annotation: Annotation,
 }
+
+#[derive(Debug, Clone)]
+pub struct ExceptionTableEntry {
+    pub start_pc: u16,
+    pub end_pc: u16,
+    pub handler_pc: u16,
+    pub catch_type: u16,
+}

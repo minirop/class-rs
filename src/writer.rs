@@ -165,11 +165,21 @@ pub fn write_attributes<W: Write + Seek>(
                 code,
                 max_stack,
                 max_locals,
+                exception_table,
                 attributes,
             } => {
                 w.write_u16::<BigEndian>(*max_stack)?;
                 w.write_u16::<BigEndian>(*max_locals)?;
                 compile(w, code)?;
+
+                w.write_u16::<BigEndian>(exception_table.len() as u16)?;
+                for entry in exception_table {
+                    w.write_u16::<BigEndian>(entry.start_pc)?;
+                    w.write_u16::<BigEndian>(entry.end_pc)?;
+                    w.write_u16::<BigEndian>(entry.handler_pc)?;
+                    w.write_u16::<BigEndian>(entry.catch_type)?;
+                }
+
                 w.write_u16::<BigEndian>(0)?;
                 write_attributes(w, attributes, jvm)?;
 
