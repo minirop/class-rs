@@ -1156,7 +1156,7 @@ fn compile<W: Write + Seek>(w: &mut W, code: &Vec<Instruction>) -> Result<(), io
                 jump_targets,
                 default,
             } => {
-                w.write_u8(0xA9)?;
+                w.write_u8(0xAA)?;
 
                 for _ in 0..*padding {
                     w.write_u8(0)?;
@@ -1278,8 +1278,8 @@ fn compile<W: Write + Seek>(w: &mut W, code: &Vec<Instruction>) -> Result<(), io
                 w.write_u8(0xC9)?;
                 w.write_u32::<BigEndian>(*branch)?;
             }
-            _ => { // 0xC4
-                w.write_u8(0xC9)?;
+            _ => {
+                w.write_u8(0xC4)?;
 
                 let (opcode, index, count) = match inst {
                     Instruction::ILoadW(index) => (0x15, *index, None),
