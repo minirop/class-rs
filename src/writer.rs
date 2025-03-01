@@ -1166,7 +1166,11 @@ fn compile<W: Write + Seek>(w: &mut W, code: &Vec<Instruction>) -> Result<(), io
                     w.write_u32::<BigEndian>(*jump_target)?;
                 }
             }
-            Instruction::LookupSwitch { padding, default, pairs } => {
+            Instruction::LookupSwitch {
+                padding,
+                default,
+                pairs,
+            } => {
                 w.write_u8(0xAB)?;
 
                 for _ in 0..*padding {
@@ -1295,7 +1299,7 @@ fn compile<W: Write + Seek>(w: &mut W, code: &Vec<Instruction>) -> Result<(), io
                 if let Some(count) = count {
                     w.write_u16::<BigEndian>(count)?;
                 }
-            },
+            }
         }
     }
 

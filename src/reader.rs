@@ -388,11 +388,11 @@ pub fn read_attributes<R: Read>(
                         64..=127 => {
                             frame.stack.push(read_verification_type(r)?);
                             StackMapFrameType::SameLocals1StackItemFrame(frame_type)
-                        },
+                        }
                         247 => {
                             frame.stack.push(read_verification_type(r)?);
                             StackMapFrameType::SameLocals1StackItemFrameExtended
-                        },
+                        }
                         248..=250 => {
                             frame.offset_delta = r.read_u16::<BigEndian>()?;
                             StackMapFrameType::ChopFrame(frame_type)
@@ -425,7 +425,7 @@ pub fn read_attributes<R: Read>(
                             }
 
                             StackMapFrameType::FullFrame
-                        },
+                        }
                         _ => unreachable!(),
                     };
 
@@ -1313,7 +1313,11 @@ fn decompile<R: Read>(r: &mut R) -> Result<Vec<Instruction>, io::Error> {
                     pairs.push(LookupSwitchPair { value, target });
                 }
 
-                Instruction::LookupSwitch { padding, default, pairs }
+                Instruction::LookupSwitch {
+                    padding,
+                    default,
+                    pairs,
+                }
             }
             0xAC => Instruction::IReturn,
             0xAD => Instruction::LReturn,
