@@ -433,6 +433,8 @@ pub fn read_attributes<R: Read>(
                             StackMapFrameType::AppendFrame(frame_type)
                         }
                         255 => {
+                            frame.offset_delta = r.read_u16::<BigEndian>()?;
+
                             let number_of_locals = r.read_u16::<BigEndian>()?;
                             for _ in 0..number_of_locals {
                                 let verification_type = read_verification_type(r)?;
