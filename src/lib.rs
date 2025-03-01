@@ -125,7 +125,7 @@ impl JVMClass {
                 ))),
             }
         } else {
-            Err(JavaError::InvalidConstantId)
+            Err(JavaError::InvalidConstantId(id as u16))
         }
     }
 
