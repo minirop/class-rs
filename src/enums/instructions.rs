@@ -1,6 +1,6 @@
 use crate::structs::LookupSwitchPair;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Instruction {
     AALoad,
     AAStore,

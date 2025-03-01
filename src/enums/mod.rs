@@ -74,7 +74,7 @@ pub enum AccessFlag {
     Volatile,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Constant {
     Class {
         name_index: u16,
@@ -198,7 +198,7 @@ impl std::fmt::Display for Constant {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Attribute {
     AnnotationDefault(ElementValue),
     BootstrapMethods(Vec<BootstrapMethod>),
@@ -261,7 +261,7 @@ pub enum Attribute {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum StackMapFrameType {
     AppendFrame(u8),
     ChopFrame(u8),
@@ -272,7 +272,7 @@ pub enum StackMapFrameType {
     SameLocals1StackItemFrameExtended,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum VerificationType {
     Double,
     Float,
@@ -285,7 +285,7 @@ pub enum VerificationType {
     UninitializedThis,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ElementValue {
     AnnotationValue(Annotation),
     ArrayValue(Vec<ElementValue>),
@@ -300,7 +300,7 @@ pub enum ElementValue {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TargetInfo {
     TypeParameter {
         target_type: u8,
