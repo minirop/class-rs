@@ -1145,6 +1145,10 @@ fn compile<W: Write + Seek>(w: &mut W, code: &Vec<Instruction>) -> Result<(), io
                 w.write_u8(0xA8)?;
                 w.write_i16::<BigEndian>(*branch)?;
             }
+            Instruction::Ret(index) => {
+                w.write_u8(0xA9)?;
+                w.write_u8(*index)?;
+            }
             Instruction::TableSwitch {
                 padding,
                 minimum,
