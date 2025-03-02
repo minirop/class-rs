@@ -14,10 +14,10 @@ pub use enums::{
 
 mod structs;
 pub use structs::{
-    Annotation, BootstrapMethod, ElementValuePair, Field, InnerClass, LineNumber, LocalVar,
-    LocalVariable, LocalVariableType, LookupSwitchPair, MemberData, Method, MethodParameter,
-    ModuleExports, ModuleOpens, ModuleProvides, ModuleRequires, StackMapFrame, TypeAnnotation,
-    TypePath,
+    Annotation, BootstrapMethod, ElementValuePair, ExceptionTableEntry, Field, InnerClass,
+    LineNumber, LocalVar, LocalVariable, LocalVariableType, LookupSwitchPair, MemberData, Method,
+    MethodParameter, ModuleExports, ModuleOpens, ModuleProvides, ModuleRequires, StackMapFrame,
+    TypeAnnotation, TypePath,
 };
 
 mod reader;
