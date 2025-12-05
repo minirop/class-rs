@@ -180,7 +180,6 @@ pub fn write_attributes<W: Write + Seek>(
                     w.write_u16::<BigEndian>(entry.catch_type)?;
                 }
 
-                w.write_u16::<BigEndian>(0)?;
                 write_attributes(w, attributes, jvm)?;
 
                 "Code"
