@@ -117,7 +117,15 @@ impl JVMClass {
 
         if let Some(constant) = self.constants.get(id) {
             match constant {
-                Constant::Class { name_index } => self.get_string(*name_index),
+                Constant::Class { name_index } => {
+                    let cname = self.get_string(*name_index)?;
+
+                    if cname.starts_with("java/lang/") {
+                        Ok(&cname[10..])
+                    } else {
+                        Ok(cname)
+                    }
+                }
                 Constant::Utf8(string) => Ok(string),
                 Constant::String { string_index } => self.get_string(*string_index),
                 _ => Err(JavaError::ConstantTypeError(format!(
