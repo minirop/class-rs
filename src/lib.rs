@@ -148,4 +148,27 @@ impl JVMClass {
 
         Err(JavaError::StringNotFound)
     }
+
+    pub fn get_bootstrap_methods(&self) -> &Vec<BootstrapMethod> {
+        for attr in &self.attributes {
+            match attr {
+                Attribute::BootstrapMethods(bootstrap_methods) => {
+                    return bootstrap_methods;
+                }
+                _ => {}
+            }
+        }
+
+        unreachable!();
+    }
+
+    pub fn get_bootstrap_method(&self, id: u16) -> &BootstrapMethod {
+        let methods = self.get_bootstrap_methods();
+
+        &methods[id as usize]
+    }
+
+    pub fn get_constant(&self, id: &u16) -> &Constant {
+        self.constants.get(*id as usize).unwrap()
+    }
 }
