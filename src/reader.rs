@@ -1444,12 +1444,12 @@ fn decompile<R: Read>(r: &mut R) -> Result<Vec<Instruction>, io::Error> {
                 Instruction::MultiANewArray(index, dimensions)
             }
             0xC6 => {
-                let index = cursor.read_u16::<BigEndian>()?;
-                Instruction::IfNull(index)
+                let branch = cursor.read_i16::<BigEndian>()?;
+                Instruction::IfNull(branch)
             }
             0xC7 => {
-                let index = cursor.read_u16::<BigEndian>()?;
-                Instruction::IfNonNull(index)
+                let branch = cursor.read_i16::<BigEndian>()?;
+                Instruction::IfNonNull(branch)
             }
             0xC8 => {
                 let branch = cursor.read_u32::<BigEndian>()?;

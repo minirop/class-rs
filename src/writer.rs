@@ -1271,13 +1271,13 @@ fn compile<W: Write + Seek>(w: &mut W, code: &Vec<Instruction>) -> Result<(), io
                 w.write_u16::<BigEndian>(*index)?;
                 w.write_u8(*dimensions)?;
             }
-            Instruction::IfNull(index) => {
+            Instruction::IfNull(branch) => {
                 w.write_u8(0xC6)?;
-                w.write_u16::<BigEndian>(*index)?;
+                w.write_i16::<BigEndian>(*branch)?;
             }
-            Instruction::IfNonNull(index) => {
+            Instruction::IfNonNull(branch) => {
                 w.write_u8(0xC7)?;
-                w.write_u16::<BigEndian>(*index)?;
+                w.write_i16::<BigEndian>(*branch)?;
             }
             Instruction::GotoW(branch) => {
                 w.write_u8(0xC8)?;

@@ -6,6 +6,8 @@ license = "MIT OR Apache-2.0"
 description = "Reads/writes a .class file into/from an almost 1-to-1 matching struct"
 repository = "https://github.com/minirop/class-rs"
 readme = "readme.md"
+keywords = ["java", "jvm", "bytecode"]
+categories = ["parsing", "development-tools"]
 
 [dependencies]
 byteorder = "1.5.0"
